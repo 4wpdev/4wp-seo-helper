@@ -23,6 +23,7 @@ final class Menu {
 	public const OAUTH_PAGE_SLUG           = 'forwp-seo-gsc-oauth';
 	public const INVENTORY_PAGE_SLUG       = 'forwp-seo-inventory';
 	public const DYNAMICS_PAGE_SLUG        = 'forwp-seo-dynamics';
+	public const AI_PAGE_SLUG              = 'forwp-seo-ai';
 	public const INVENTORY_POST_TYPE_ARG   = 'forwp_post_type';
 	public const INVENTORY_PER_PAGE_OPTION  = 'forwp_seo_inventory_per_page';
 	public const INVENTORY_PER_PAGE_DEFAULT = 20;
@@ -40,6 +41,12 @@ final class Menu {
 
 	/** @var string|null */
 	private static $dynamics_page_hook = null;
+
+	/** @var string|null */
+	private static $dashboard_page_hook = null;
+
+	/** @var string|null */
+	private static $ai_page_hook = null;
 
 	public static function get_instance(): self {
 		if ( null === self::$instance ) {
@@ -66,7 +73,7 @@ final class Menu {
 	}
 
 	public function register_menu(): void {
-		add_menu_page(
+		self::$dashboard_page_hook = add_menu_page(
 			__( '4WP SEO Helper', '4wp-seo-helper' ),
 			__( '4WP SEO', '4wp-seo-helper' ),
 			'manage_options',
@@ -125,6 +132,15 @@ final class Menu {
 			);
 		}
 
+		self::$ai_page_hook = add_submenu_page(
+			self::PAGE_SLUG,
+			__( 'AI Assistant', '4wp-seo-helper' ),
+			__( 'AI Assistant', '4wp-seo-helper' ),
+			'manage_options',
+			self::AI_PAGE_SLUG,
+			[ AiAssistantPage::class, 'render' ]
+		);
+
 		self::$settings_page_hook = add_submenu_page(
 			self::PAGE_SLUG,
 			__( 'Settings', '4wp-seo-helper' ),
@@ -133,6 +149,10 @@ final class Menu {
 			self::SETTINGS_PAGE_SLUG,
 			[ Page::class, 'render' ]
 		);
+
+		if ( is_string( self::$dashboard_page_hook ) && '' !== self::$dashboard_page_hook ) {
+			add_action( 'load-' . self::$dashboard_page_hook, [ DashboardPage::class, 'on_load' ] );
+		}
 
 		if ( is_string( self::$gsc_page_hook ) && '' !== self::$gsc_page_hook ) {
 			add_action( 'load-' . self::$gsc_page_hook, [ GscPage::class, 'handle_load' ] );
@@ -230,8 +250,46 @@ final class Menu {
 	public function enqueue_admin_assets( string $hook_suffix ): void {
 		if (
 			'toplevel_page_' . self::PAGE_SLUG === $hook_suffix
-			|| ( is_string( self::$dynamics_page_hook ) && self::$dynamics_page_hook === $hook_suffix )
+			|| ( is_string( self::$dashboard_page_hook ) && self::$dashboard_page_hook === $hook_suffix )
 		) {
+			wp_enqueue_style(
+				'forwp-seo-admin-settings',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-settings.css',
+				[],
+				FORWP_SEO_HELPER_VERSION
+			);
+			wp_enqueue_script(
+				'forwp-seo-admin-tabs',
+				FORWP_SEO_HELPER_URL . 'assets/js/admin-tabs.js',
+				[],
+				FORWP_SEO_HELPER_VERSION,
+				true
+			);
+			return;
+		}
+
+		if (
+			( is_string( self::$ai_page_hook ) && self::$ai_page_hook === $hook_suffix )
+			|| str_ends_with( $hook_suffix, '_page_' . self::AI_PAGE_SLUG )
+		) {
+			wp_enqueue_style( 'wp-components' );
+			wp_enqueue_style(
+				'forwp-seo-admin-settings',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-settings.css',
+				[ 'wp-components' ],
+				FORWP_SEO_HELPER_VERSION
+			);
+			wp_enqueue_script(
+				'forwp-seo-admin-tabs',
+				FORWP_SEO_HELPER_URL . 'assets/js/admin-tabs.js',
+				[],
+				FORWP_SEO_HELPER_VERSION,
+				true
+			);
+			return;
+		}
+
+		if ( is_string( self::$dynamics_page_hook ) && self::$dynamics_page_hook === $hook_suffix ) {
 			wp_enqueue_style(
 				'forwp-seo-admin-settings',
 				FORWP_SEO_HELPER_URL . 'assets/css/admin-settings.css',
@@ -352,7 +410,7 @@ final class Menu {
 			'forwp-seo-inventory-priority',
 			FORWP_SEO_HELPER_URL . 'assets/css/inventory-priority.css',
 			[],
-			FORWP_SEO_HELPER_VERSION
+			(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/css/inventory-priority.css' )
 		);
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only admin view for script localization.
@@ -424,6 +482,7 @@ final class Menu {
 						'refreshing'   => __( 'Refreshing…', '4wp-seo-helper' ),
 						'requesting'   => __( 'Opening GSC…', '4wp-seo-helper' ),
 						'inspectError' => __( 'Inspect error', '4wp-seo-helper' ),
+						'notInspected' => __( 'Not inspected yet', '4wp-seo-helper' ),
 						'error'        => __( 'Search Console action failed.', '4wp-seo-helper' ),
 					],
 				]
@@ -434,7 +493,7 @@ final class Menu {
 			'forwp-seo-inventory-quick-edit',
 			FORWP_SEO_HELPER_URL . 'assets/js/inventory-quick-edit.js',
 			[ 'jquery' ],
-			FORWP_SEO_HELPER_VERSION,
+			(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/js/inventory-quick-edit.js' ),
 			true
 		);
 

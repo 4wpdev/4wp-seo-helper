@@ -1,0 +1,95 @@
+/**
+ * SEO dashboard widgets — same Screen Options layout as 4WP FAQ.
+ */
+
+body.forwp-seo-dashboard-page .forwp-seo-dash {
+	max-width: none;
+}
+
+body.forwp-seo-dashboard-page #dashboard-widgets .postbox,
+body.forwp-seo-dashboard-page #dashboard-widgets .postbox-container .empty-container,
+body.forwp-seo-dashboard-page.is-dragging-metaboxes #dashboard-widgets .meta-box-sortables {
+	border-radius: 0;
+}
+
+body.forwp-seo-dashboard-page .forwp-seo-columns-prefs label.columns-prefs-3,
+body.forwp-seo-dashboard-page .forwp-seo-columns-prefs label.columns-prefs-4 {
+	display: inline-block;
+}
+
+@media screen and (min-width: 800px) {
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-2 .postbox-container,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-2 #postbox-container-1,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-2 #postbox-container-2,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-2 #postbox-container-3,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-2 #postbox-container-4 {
+		width: 50%;
+	}
+
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-2 #postbox-container-2,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-2 #postbox-container-3,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-2 #postbox-container-4 {
+		float: right;
+	}
+
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-3 .postbox-container,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-3 #postbox-container-1,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-3 #postbox-container-2,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-3 #postbox-container-3,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-3 #postbox-container-4 {
+		width: 33.333%;
+	}
+
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-3 #postbox-container-3,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-3 #postbox-container-4 {
+		float: right;
+	}
+
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-4 #postbox-container-1 {
+		float: left;
+		width: 33.333%;
+	}
+
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-4 #postbox-container-2,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-4 #postbox-container-3,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets.columns-4 #postbox-container-4 {
+		float: right;
+		width: 66.666%;
+	}
+
+	body.forwp-seo-dashboard-page #dashboard-widgets.columns-3 #postbox-container-4 .empty-container {
+		display: none;
+		height: 0;
+		min-height: 0;
+		margin: 0;
+		border: none;
+		outline: none;
+	}
+}
+
+@media screen and (max-width: 799px) {
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets .postbox-container,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets #postbox-container-1,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets #postbox-container-2,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets #postbox-container-3,
+	body.forwp-seo-dashboard-page #wpbody-content #dashboard-widgets #postbox-container-4 {
+		float: none;
+		width: 100%;
+	}
+}
+
+body.forwp-seo-dashboard-page #dashboard-widgets .inside {
+	margin-bottom: 0;
+}
+
+body.forwp-seo-dashboard-page #dashboard-widgets .forwp-seo-metric-grid {
+	margin: 0;
+}
+
+body.forwp-seo-dashboard-page #dashboard-widgets .forwp-seo-metric-card {
+	box-shadow: none;
+}
+
+body.forwp-seo-dashboard-page #dashboard-widgets .forwp-seo-pane__footer {
+	margin-bottom: 0;
+}

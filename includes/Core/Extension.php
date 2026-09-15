@@ -40,10 +40,8 @@ final class Extension {
 
 	private function init(): void {
 		add_action( 'init', [ $this, 'register_post_meta' ] );
-		if ( Release::is_module_public( Release::MODULE_TECHARTICLE ) ) {
-			add_action( 'add_meta_boxes', [ $this, 'register_meta_boxes' ] );
-			add_action( 'save_post', [ $this, 'save_post_meta' ] );
-		}
+		add_action( 'add_meta_boxes', [ $this, 'maybe_register_meta_boxes' ] );
+		add_action( 'save_post', [ $this, 'maybe_save_post_meta' ] );
 
 		TechArticle::get_instance();
 		TechArticleRest::get_instance();
@@ -59,14 +57,41 @@ final class Extension {
 
 		if ( is_admin() ) {
 			Menu::get_instance();
-			if (
-				Release::is_module_public( Release::MODULE_TECHARTICLE )
-				|| Release::is_module_public( Release::MODULE_CROSSPOSTING )
-				|| Release::is_module_public( Release::MODULE_GSC )
-			) {
-				Editor::get_instance();
-			}
+			add_action( 'init', [ $this, 'maybe_boot_editor' ], 20 );
 			Notices::get_instance();
+		}
+	}
+
+	/**
+	 * Register TechArticle meta box only when the module is public.
+	 */
+	public function maybe_register_meta_boxes(): void {
+		if ( ! Release::is_module_public( Release::MODULE_TECHARTICLE ) ) {
+			return;
+		}
+		$this->register_meta_boxes();
+	}
+
+	/**
+	 * @param int $post_id Post ID.
+	 */
+	public function maybe_save_post_meta( int $post_id ): void {
+		if ( ! Release::is_module_public( Release::MODULE_TECHARTICLE ) ) {
+			return;
+		}
+		$this->save_post_meta( $post_id );
+	}
+
+	/**
+	 * Boot editor sidebar when a gated module is public (checked after theme filters).
+	 */
+	public function maybe_boot_editor(): void {
+		if (
+			Release::is_module_public( Release::MODULE_TECHARTICLE )
+			|| Release::is_module_public( Release::MODULE_CROSSPOSTING )
+			|| Release::is_module_public( Release::MODULE_GSC )
+		) {
+			Editor::get_instance();
 		}
 	}
 

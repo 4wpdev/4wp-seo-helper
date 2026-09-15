@@ -44,36 +44,34 @@
 		} );
 	}
 
-	function initGscRangeBar() {
-		var select = document.getElementById( 'forwp-seo-gsc-range' );
-		if ( ! select ) {
-			return;
-		}
+	function initRangeSelects() {
+		document.querySelectorAll( '.forwp-seo-range-select' ).forEach( function ( select ) {
+			var form = select.closest( 'form' );
+			if ( form ) {
+				var url = new URL( window.location.href );
+				var tabInput = form.querySelector( 'input[name="tab"]' );
+				if ( tabInput ) {
+					tabInput.value = url.searchParams.get( 'tab' ) || tabInput.value || 'overview';
+				}
+			}
 
-		var form = select.closest( 'form' );
-		if ( form ) {
-			var url = new URL( window.location.href );
-			var tabInput = form.querySelector( 'input[name="tab"]' );
-			if ( tabInput ) {
-				tabInput.value = url.searchParams.get( 'tab' ) || tabInput.value || 'overview';
-			}
-		}
-
-		select.addEventListener( 'change', function () {
-			var url = new URL( window.location.href );
-			url.searchParams.set( 'range', select.value );
-			if ( ! url.searchParams.get( 'tab' ) ) {
-				url.searchParams.set( 'tab', 'overview' );
-			}
-			var nonceInput = form ? form.querySelector( 'input[name="forwp_seo_gsc_range_nonce"]' ) : null;
-			if ( nonceInput && nonceInput.value ) {
-				url.searchParams.set( 'forwp_seo_gsc_range_nonce', nonceInput.value );
-			} else {
-				url.searchParams.delete( 'forwp_seo_gsc_range_nonce' );
-			}
-			url.searchParams.delete( 'orderby' );
-			url.searchParams.delete( 'order' );
-			window.location.assign( url.toString() );
+			select.addEventListener( 'change', function () {
+				var url = new URL( window.location.href );
+				url.searchParams.set( 'range', select.value );
+				var tabInput = form ? form.querySelector( 'input[name="tab"]' ) : null;
+				if ( tabInput && ! url.searchParams.get( 'tab' ) ) {
+					url.searchParams.set( 'tab', tabInput.value || 'overview' );
+				}
+				var nonceInput = form ? form.querySelector( 'input[name="forwp_seo_gsc_range_nonce"]' ) : null;
+				if ( nonceInput && nonceInput.value ) {
+					url.searchParams.set( 'forwp_seo_gsc_range_nonce', nonceInput.value );
+				} else {
+					url.searchParams.delete( 'forwp_seo_gsc_range_nonce' );
+				}
+				url.searchParams.delete( 'orderby' );
+				url.searchParams.delete( 'order' );
+				window.location.assign( url.toString() );
+			} );
 		} );
 	}
 
@@ -94,7 +92,7 @@
 
 	function initTabs() {
 		document.querySelectorAll( '.forwp-seo-tab-panel' ).forEach( initTabPanel );
-		initGscRangeBar();
+		initRangeSelects();
 		initUseSuggestedRedirect();
 	}
 

@@ -83,6 +83,28 @@ final class InventoryListTable extends \WP_List_Table {
 		$this->show_gsc_indexing = $show;
 	}
 
+	private function current_orderby(): string {
+		$sortable = $this->get_sortable_columns();
+		if ( empty( $sortable ) ) {
+			return '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list table sort.
+		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( (string) $_GET['orderby'] ) ) : '';
+		if ( '' === $orderby || ! isset( $sortable[ $orderby ] ) ) {
+			return '';
+		}
+
+		return $orderby;
+	}
+
+	private function current_order(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list table sort.
+		$order = isset( $_GET['order'] ) ? strtolower( sanitize_key( wp_unslash( (string) $_GET['order'] ) ) ) : 'asc';
+
+		return 'desc' === $order ? 'desc' : 'asc';
+	}
+
 	protected function column_cb( $item ): string {
 		return sprintf(
 			'<input type="checkbox" name="post_ids[]" value="%s" />',
@@ -159,7 +181,13 @@ final class InventoryListTable extends \WP_List_Table {
 	}
 
 	protected function get_sortable_columns(): array {
-		return [];
+		if ( ! $this->show_gsc_indexing ) {
+			return [];
+		}
+
+		return [
+			'gsc_index_status' => [ 'gsc_index_status', false ],
+		];
 	}
 
 	protected function get_primary_column_name(): string {
@@ -190,6 +218,8 @@ final class InventoryListTable extends \WP_List_Table {
 				'post_id'          => ! empty( $this->filters['post_id'] ) ? (int) $this->filters['post_id'] : 0,
 				'sort_by_priority' => true,
 				'priority_filter'  => $this->priority_filter,
+				'orderby'          => $this->current_orderby(),
+				'order'            => $this->current_order(),
 			]
 		);
 
@@ -592,11 +622,7 @@ final class InventoryListTable extends \WP_List_Table {
 	public function column_default( $item, $column_name ): string {
 		switch ( $column_name ) {
 			case 'post_id':
-				$edit_link = get_edit_post_link( (int) $item['post_id'] );
-				if ( is_string( $edit_link ) ) {
-					return '<a href="' . esc_url( $edit_link ) . '">' . esc_html( (string) $item['post_id'] ) . '</a>';
-				}
-				return esc_html( (string) $item['post_id'] );
+				return $this->render_post_id_cell( $item );
 
 			case 'completeness':
 				return $this->render_score_cell( $item );
@@ -677,6 +703,50 @@ final class InventoryListTable extends \WP_List_Table {
 		$title = $label_text ?: '';
 
 		return '<span class="forwp-seo-score forwp-seo-score--' . esc_attr( $class ) . '" title="' . esc_attr( $title ) . '">' . esc_html( (string) $score ) . '</span>';
+	}
+
+	/**
+	 * @param array<string, mixed> $item
+	 */
+	private function render_post_id_cell( array $item ): string {
+		$post_id   = (int) ( $item['post_id'] ?? 0 );
+		$post_type = (string) ( $item['post_type'] ?? '' );
+		$id_html   = esc_html( (string) $post_id );
+		$edit_link = get_edit_post_link( $post_id );
+
+		if ( is_string( $edit_link ) && '' !== $edit_link ) {
+			$id_html = '<a href="' . esc_url( $edit_link ) . '">' . $id_html . '</a>';
+		}
+
+		$icon_html = '';
+		if ( '' !== $post_type ) {
+			$object = get_post_type_object( $post_type );
+			$label  = $object ? (string) $object->labels->singular_name : $post_type;
+			$icon   = $this->resolve_post_type_icon( $object, $post_type );
+
+			if ( str_starts_with( $icon, 'dashicons-' ) ) {
+				$icon_html = sprintf(
+					'<span class="forwp-seo-id-type dashicons %1$s" title="%2$s (%3$s)" aria-label="%2$s"></span>',
+					esc_attr( $icon ),
+					esc_attr( $label ),
+					esc_attr( $post_type )
+				);
+			} elseif ( '' !== $icon && filter_var( $icon, FILTER_VALIDATE_URL ) ) {
+				$icon_html = sprintf(
+					'<span class="forwp-seo-id-type forwp-seo-id-type--img" title="%2$s (%3$s)" aria-label="%2$s">' .
+					'<img src="%1$s" alt="" width="16" height="16" />' .
+					'</span>',
+					esc_url( $icon ),
+					esc_attr( $label ),
+					esc_attr( $post_type )
+				);
+			}
+		}
+
+		return '<span class="forwp-seo-id-cell">' .
+			'<span class="forwp-seo-id-cell__id">' . $id_html . '</span>' .
+			$icon_html .
+			'</span>';
 	}
 
 	private function render_post_type_cell( string $post_type ): string {
@@ -801,19 +871,48 @@ final class InventoryListTable extends \WP_List_Table {
 		$link     = (string) ( $item['gsc_inspect_link'] ?? '' );
 
 		if ( '' !== $error && '' === $coverage && '' === $verdict ) {
-			return '<span class="forwp-seo-index-pill forwp-seo-index-pill--bad" title="' . esc_attr( $error ) . '">' . esc_html__( 'Inspect error', '4wp-seo-helper' ) . '</span>';
+			return $this->render_gsc_index_status_icon(
+				'bad',
+				$error,
+				__( 'Inspect error', '4wp-seo-helper' ),
+				''
+			);
 		}
 
 		$label = '' !== $coverage ? $coverage : ( '' !== $verdict ? $verdict : '' );
 		if ( '' === $label ) {
-			return '<span aria-hidden="true">—</span><span class="screen-reader-text">' . esc_html__( 'Not inspected yet', '4wp-seo-helper' ) . '</span>';
+			return '<span class="forwp-seo-index-icon forwp-seo-index-icon--na" title="' . esc_attr__( 'Not inspected yet', '4wp-seo-helper' ) . '" aria-label="' . esc_attr__( 'Not inspected yet', '4wp-seo-helper' ) . '">'
+				. '<span class="dashicons dashicons-minus" aria-hidden="true"></span>'
+				. '</span>';
 		}
 
-		$tone = $this->gsc_coverage_tone( $coverage, $verdict );
-		$html = '<span class="forwp-seo-index-pill forwp-seo-index-pill--' . esc_attr( $tone ) . '">' . esc_html( $label ) . '</span>';
+		return $this->render_gsc_index_status_icon(
+			$this->gsc_coverage_tone( $coverage, $verdict ),
+			$label,
+			$label,
+			$link
+		);
+	}
+
+	private function render_gsc_index_status_icon( string $tone, string $title, string $aria, string $link ): string {
+		$icon = match ( $tone ) {
+			'good' => 'dashicons-yes-alt',
+			'bad' => 'dashicons-dismiss',
+			default => 'dashicons-warning',
+		};
+
+		$html = sprintf(
+			'<span class="forwp-seo-index-icon forwp-seo-index-icon--%1$s" title="%2$s" aria-label="%3$s">' .
+			'<span class="dashicons %4$s" aria-hidden="true"></span>' .
+			'</span>',
+			esc_attr( $tone ),
+			esc_attr( $title ),
+			esc_attr( $aria ),
+			esc_attr( $icon )
+		);
 
 		if ( '' !== $link && PropertyResolver::is_valid_inspection_result_link( $link ) ) {
-			$html = '<a href="' . esc_url( $link ) . '" target="_blank" rel="noopener noreferrer" class="forwp-seo-index-pill-link">' . $html . '</a>';
+			$html = '<a href="' . esc_url( $link ) . '" target="_blank" rel="noopener noreferrer" class="forwp-seo-index-icon-link">' . $html . '</a>';
 		}
 
 		return $html;

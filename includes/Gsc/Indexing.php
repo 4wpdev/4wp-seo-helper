@@ -286,6 +286,53 @@ final class Indexing {
 	}
 
 	/**
+	 * Sort rank: 0 not indexed / error, 1 other, 2 not inspected, 3 indexed.
+	 *
+	 * @param array<string, mixed> $item Inventory record.
+	 */
+	public static function inventory_status_rank( array $item ): int {
+		$coverage = (string) ( $item['gsc_coverage'] ?? '' );
+		$verdict  = (string) ( $item['gsc_verdict'] ?? '' );
+		$error    = (string) ( $item['gsc_inspect_error'] ?? '' );
+
+		if ( '' !== $error && '' === $coverage && '' === $verdict ) {
+			return 0;
+		}
+
+		if ( '' === $coverage && '' === $verdict ) {
+			return 2;
+		}
+
+		$text = $coverage . ' ' . $verdict;
+		if ( preg_match( '/indexed/i', $text ) && ! preg_match( '/not indexed|excluded/i', $text ) ) {
+			return 3;
+		}
+
+		if ( preg_match( '/not indexed|excluded|error|fail/i', $text ) ) {
+			return 0;
+		}
+
+		return 1;
+	}
+
+	/**
+	 * @param array<string, mixed> $item Inventory record.
+	 */
+	public static function inventory_status_label( array $item ): string {
+		$coverage = trim( (string) ( $item['gsc_coverage'] ?? '' ) );
+		if ( '' !== $coverage ) {
+			return $coverage;
+		}
+
+		$verdict = trim( (string) ( $item['gsc_verdict'] ?? '' ) );
+		if ( '' !== $verdict ) {
+			return $verdict;
+		}
+
+		return trim( (string) ( $item['gsc_inspect_error'] ?? '' ) );
+	}
+
+	/**
 	 * @return array<string, string>
 	 */
 	private function read_stored_inspect( int $post_id ): array {

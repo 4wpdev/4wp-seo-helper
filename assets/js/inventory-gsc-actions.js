@@ -59,24 +59,32 @@
 		var error = inspect.error || '';
 		var link = inspect.inspectLink || '';
 
+		function iconHtml( tone, title, dashicon ) {
+			var html = '<span class="forwp-seo-index-icon forwp-seo-index-icon--' + escAttr( tone ) +
+				'" title="' + escAttr( title ) + '" aria-label="' + escAttr( title ) + '">' +
+				'<span class="dashicons ' + escAttr( dashicon ) + '" aria-hidden="true"></span>' +
+				'</span>';
+			if ( link ) {
+				html = '<a href="' + escAttr( link ) + '" target="_blank" rel="noopener noreferrer" class="forwp-seo-index-icon-link">' +
+					html + '</a>';
+			}
+			return html;
+		}
+
 		if ( error && ! coverage && ! verdict ) {
-			return '<span class="forwp-seo-index-pill forwp-seo-index-pill--bad" title="' +
-				escAttr( error ) + '">' + escHtml( cfg.i18n.inspectError ) + '</span>';
+			return iconHtml( 'bad', error || cfg.i18n.inspectError, 'dashicons-dismiss' );
 		}
 
 		var label = coverage || verdict;
 		if ( ! label ) {
-			return '<span aria-hidden="true">—</span>';
+			return '<span class="forwp-seo-index-icon forwp-seo-index-icon--na" title="' +
+				escAttr( cfg.i18n.notInspected || 'Not inspected yet' ) + '">' +
+				'<span class="dashicons dashicons-minus" aria-hidden="true"></span></span>';
 		}
 
 		var tone = coverageTone( coverage, verdict );
-		var html = '<span class="forwp-seo-index-pill forwp-seo-index-pill--' + tone + '">' +
-			escHtml( label ) + '</span>';
-		if ( link ) {
-			html = '<a href="' + escAttr( link ) + '" target="_blank" rel="noopener noreferrer" class="forwp-seo-index-pill-link">' +
-				html + '</a>';
-		}
-		return html;
+		var dashicon = 'good' === tone ? 'dashicons-yes-alt' : ( 'bad' === tone ? 'dashicons-dismiss' : 'dashicons-warning' );
+		return iconHtml( tone, label, dashicon );
 	}
 
 	function updateRowFromResponse( row, response ) {

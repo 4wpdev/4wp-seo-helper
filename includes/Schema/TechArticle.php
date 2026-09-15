@@ -192,16 +192,42 @@ final class TechArticle {
 
 	private function build_schema_from_blocks( \WP_Post $post ): array {
 		$blocks = parse_blocks( $post->post_content );
-		$flat   = $this->flatten_blocks( $blocks );
+		$slots  = TechArticleMapper::slots_from_blocks( $blocks );
 
-		$software_code = $this->extract_software_code( $flat );
-		$steps         = $this->extract_steps( $flat );
+		if ( ! $slots->has_required() ) {
+			// Legacy path when mapper finds nothing usable.
+			$flat          = $this->flatten_blocks( $blocks );
+			$software_code = $this->extract_software_code( $flat );
+			$steps         = $this->extract_steps( $flat );
 
-		if ( empty( $software_code ) || empty( $steps ) ) {
-			return [];
+			if ( empty( $software_code ) || empty( $steps ) ) {
+				return [];
+			}
+
+			return $this->assemble_schema( $post, $software_code, $steps );
 		}
 
-		return $this->assemble_schema( $post, $software_code, $steps );
+		$context = [
+			'headline'      => get_the_title( $post->ID ),
+			'url'           => get_permalink( $post->ID ),
+			'datePublished' => get_the_date( 'c', $post->ID ),
+			'dateModified'  => get_the_modified_date( 'c', $post->ID ),
+			'image'         => (string) get_the_post_thumbnail_url( $post->ID, 'large' ),
+			'about'         => $this->build_about( $post ),
+			'@id'           => trailingslashit( (string) get_permalink( $post->ID ) ) . '#techarticle',
+		];
+
+		$author = get_userdata( $post->post_author );
+		if ( $author ) {
+			$context['author'] = [
+				'@type' => 'Person',
+				'name'  => $author->display_name,
+				'url'   => get_author_posts_url( $author->ID ),
+			];
+		}
+
+		$schema = TechArticleMapper::to_schema( $context, $slots );
+		return apply_filters( 'forwp_seo_techarticle_schema', $schema, $post );
 	}
 
 	/**

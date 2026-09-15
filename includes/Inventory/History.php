@@ -83,7 +83,7 @@ final class History {
 	/**
 	 * Pages that already have at least one recorded event.
 	 *
-	 * @return array{items: list<array{post_id:int,event_count:int,last_at:string,last_type:string}>, total: int}
+	 * @return array{items: list<array{post_id:int,event_count:int,last_at:string,last_type:string,last_snapshot:array<string,mixed>}>, total: int}
 	 */
 	public static function listed_posts( int $page = 1, int $per_page = 20, string $search = '' ): array {
 		$empty = [
@@ -154,12 +154,12 @@ final class History {
 			$id_sql = implode( ',', array_map( 'absint', $last_ids ) );
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$type_rows = $wpdb->get_results(
-				"SELECT id, event_type FROM {$table} WHERE id IN ({$id_sql})",
+				"SELECT id, event_type, snapshot FROM {$table} WHERE id IN ({$id_sql})",
 				ARRAY_A
 			);
 			if ( is_array( $type_rows ) ) {
-				foreach ( $type_rows as $type_row ) {
-					$types[ (int) ( $type_row['id'] ?? 0 ) ] = sanitize_key( (string) ( $type_row['event_type'] ?? '' ) );
+				foreach ( self::hydrate_rows( $type_rows ) as $type_row ) {
+					$types[ (int) $type_row['id'] ] = $type_row;
 				}
 			}
 		}
@@ -167,11 +167,13 @@ final class History {
 		$items = [];
 		foreach ( $rows as $row ) {
 			$last_id = (int) ( $row['last_id'] ?? 0 );
+			$last    = $types[ $last_id ] ?? null;
 			$items[] = [
-				'post_id'      => (int) ( $row['post_id'] ?? 0 ),
-				'event_count'  => (int) ( $row['event_count'] ?? 0 ),
-				'last_at'      => (string) ( $row['last_at'] ?? '' ),
-				'last_type'    => $types[ $last_id ] ?? '',
+				'post_id'        => (int) ( $row['post_id'] ?? 0 ),
+				'event_count'    => (int) ( $row['event_count'] ?? 0 ),
+				'last_at'        => (string) ( $row['last_at'] ?? '' ),
+				'last_type'      => is_array( $last ) ? (string) $last['event_type'] : '',
+				'last_snapshot'  => is_array( $last ) ? (array) $last['snapshot'] : [],
 			];
 		}
 
@@ -179,6 +181,51 @@ final class History {
 			'items' => $items,
 			'total' => $total,
 		];
+	}
+
+	/**
+	 * Newest events of one type per post (newest first).
+	 *
+	 * @param list<int> $post_ids Post IDs.
+	 * @return array<int, list<array<string, mixed>>>
+	 */
+	public static function latest_typed( array $post_ids, string $type, int $each = 2 ): array {
+		$post_ids = array_values( array_unique( array_filter( array_map( 'absint', $post_ids ) ) ) );
+		$type     = sanitize_key( $type );
+		$each     = max( 1, min( 5, $each ) );
+		if ( [] === $post_ids || ! in_array( $type, self::TYPES, true ) || ! HistorySchema::tables_exist() ) {
+			return [];
+		}
+
+		global $wpdb;
+		$table  = HistorySchema::table_name();
+		$id_sql = implode( ',', $post_ids );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, post_id, event_type, occurred_at, snapshot
+				FROM {$table}
+				WHERE event_type = %s AND post_id IN ({$id_sql})
+				ORDER BY post_id ASC, id DESC",
+				$type
+			),
+			ARRAY_A
+		);
+
+		$grouped = [];
+		foreach ( self::hydrate_rows( is_array( $rows ) ? $rows : [] ) as $row ) {
+			$pid = (int) $row['post_id'];
+			if ( ! isset( $grouped[ $pid ] ) ) {
+				$grouped[ $pid ] = [];
+			}
+			if ( count( $grouped[ $pid ] ) >= $each ) {
+				continue;
+			}
+			$grouped[ $pid ][] = $row;
+		}
+
+		return $grouped;
 	}
 
 	/**

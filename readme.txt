@@ -4,7 +4,7 @@ Tags: seo, inventory, yoast, search console, google
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,6 +16,8 @@ Site-wide SEO inventory and Google Search Console in wp-admin—P1–P3 lanes, R
 
 Version **2.0** adds a full **Google Search Console** workspace inside wp-admin: connect your Google account, sync Search Analytics locally, inspect URLs, and see indexing status next to inventory rows.
 
+Version **2.2** adds an **AI Assistant** that generates SEO titles, meta descriptions, and focus keyphrases through the standard **WordPress AI Client** (Settings → Connectors). There is no custom vendor SDK. Nothing is generated until an administrator configures a connector.
+
 Built for teams that use **Yoast SEO** or **All in One SEO** and need one place to audit SEO fields across posts, pages, and public custom post types.
 
 A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Helper on 4wp.dev](https://4wp.dev/plugin/4wp-seo-helper/).
@@ -25,6 +27,7 @@ A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Help
 * **SEO audits** — filter by missing title, meta description, or focus keyphrases
 * **Content ops** — drag rows into P1–P3 lanes (business priority, not SEO score)
 * **Bulk workflows** — quick edit SEO fields from the inventory table
+* **AI copy** — generate title, description, and focus keyphrases via WordPress Connectors
 * **Search Console ops** — overview, insights, performance breakdowns, URL inspection, and background data sync
 * **Indexing workflows** — refresh index status and request indexing from the inventory table or admin bar
 * **External sync** — REST API for Google Sheets or custom dashboards
@@ -39,6 +42,7 @@ A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Help
 3. Review completeness scores and missing SEO fields site-wide.
 4. Drag rows into **P1 / P2 / P3** to mark business priority.
 5. Optional: enable the REST API under **Settings** and connect Sheets or your dashboard.
+6. Optional: configure **Settings → Connectors** (WordPress AI Client), then Generate SEO copy from Inventory Quick Edit.
 
 Priority reflects **business importance** (e.g. main service pages), not SEO score—a page can stay in P1 at 100% completeness.
 
@@ -68,9 +72,18 @@ If the connected Google account does **not** have access to this site's Search C
 * **Admin bar** — quick Search Console inspect link on the front end when connected
 * **Local development** — loopback OAuth redirect helper for `.local` / localhost sites
 
+= AI Assistant =
+
+* Uses the **WordPress AI Client** and **Settings → Connectors** (`wp_supports_ai()`, `wp_ai_client_prompt()`)
+* Generates **SEO title**, **meta description**, and **focus keyphrases** from Inventory Quick Edit
+* Default context is **page content** (plain text stored in WordPress). **Page URL** uses fewer tokens
+* **4WP SEO → AI Assistant** documents what already works; prompt-pattern settings will follow
+* Nothing is written to the post until you review, Apply, and Update
+* If no connector is available, the Generate panel is not shown
+
 = Modules =
 
-**Available in wp-admin:** SEO Inventory, Inventory REST API, Google Search Console.
+**Available in wp-admin:** SEO Inventory, Inventory REST API, Google Search Console, AI Assistant (when a WordPress AI connector is configured).
 
 **Coming soon:** TechArticle schema, LLMS.txt, and cross posting (visible as badges in Settings until a future release).
 
@@ -104,7 +117,11 @@ Three configurable business tiers in the inventory table. **Priority is not SEO 
 
 = Can I export the inventory? =
 
-Yes. Use **Export CSV** on the SEO Inventory screen to download titles, meta fields, completeness, priority, and missing-field flags.
+Yes. Use the CSV icon on the SEO Inventory tabs row to download titles, meta fields, completeness, priority, and missing-field flags.
+
+= How does the AI Assistant work? =
+
+It uses the standard **WordPress AI Client**. Configure a text-generation connector under **Settings → Connectors**. When `wp_supports_ai()` reports a working connector, Inventory Quick Edit can **Generate with AI** (SEO title, meta description, focus keyphrases). Default context is page content from WordPress; you can switch to page URL. Review the result, Apply, then Update. This plugin does not ship API keys and does not call a model until a connector is configured.
 
 = Is there a REST API? =
 
@@ -161,7 +178,7 @@ TechArticle schema and blocks, LLMS.txt, and cross posting are in the codebase b
 
 = Does it depend on other 4WP plugins? =
 
-No. **4WP SEO Helper** runs on its own. The REST API can integrate with external tools such as Google Sheets or the 4WP Analytics Dashboard.
+No. **4WP SEO Helper** runs on its own. The REST API can integrate with external tools such as Google Sheets or the 4WP Analytics Dashboard. Optional AI copy uses the **WordPress AI Client** (Settings → Connectors), not a separate 4WP AI plugin.
 
 = Is this plugin affiliated with Yoast or WordPress? =
 
@@ -181,6 +198,10 @@ Used to list verified properties, inspect URLs, and fetch Search Analytics for t
 
 No Google API calls are made until an administrator configures OAuth credentials and connects an account. The plugin does not send site visitor or front-end user data to Google.
 
+**WordPress AI Client / Connectors** (optional)
+
+When an administrator configures a connector under **Settings → Connectors** and runs **Generate with AI** in SEO Inventory, this plugin sends a prompt (page title plus either stripped page content or the page URL) through `wp_ai_client_prompt()`. The WordPress AI Client routes that prompt to the connector the administrator selected. This plugin does not call model vendors directly; which remote service receives the prompt depends on that connector.
+
 * [Google Terms of Service](https://policies.google.com/terms)
 * [Google Privacy Policy](https://policies.google.com/privacy)
 * [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy)
@@ -194,6 +215,13 @@ No Google API calls are made until an administrator configures OAuth credentials
 5. GSC data sync, inventory Search Console metrics, and indexing actions
 
 == Changelog ==
+
+= 2.2.0 =
+* AI Assistant: generate SEO title, meta description, and focus keyphrases via the standard WordPress AI Client (Settings → Connectors).
+* Inventory Generate panel defaults to page content; page URL is the lighter-token option. Review before Apply/Update.
+* Dashboard: configurable widgets (Screen Options columns, drag/hide) with 7 / 28 / 90 day Search Console ranges.
+* Dynamics: list shows what changed (search clicks/impressions, content, score) and cleaner pagination.
+* Inventory: CSV export icon on the tabs row; quieter header.
 
 = 2.1.0 =
 * Inventory: real pagination tied to Screen Options; type filter no longer collides with WP `post_type`.
@@ -227,6 +255,9 @@ No Google API calls are made until an administrator configures OAuth credentials
 * Future modules (TechArticle, LLMS.txt, cross posting) visible as Coming soon in admin.
 
 == Upgrade Notice ==
+
+= 2.2.0 =
+AI Assistant via WordPress Connectors, configurable dashboard with GSC date ranges, and a Dynamics list that shows what changed.
 
 = 2.1.0 =
 Inventory pagination, exclude post types, dashboard history/KPIs, and a simpler admin bar with last-indexed date.

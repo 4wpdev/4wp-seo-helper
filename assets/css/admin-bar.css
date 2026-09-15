@@ -1,47 +1,188 @@
-#wpadminbar .forwp-seo-ab-dot {
+/* 4WP SEO admin bar — readable status + actions, no upsell chrome */
+
+#wpadminbar .forwp-seo-admin-bar-root .ab-icon {
+	font-size: 18px;
+	margin-right: 4px;
+	padding: 6px 0;
+	top: 2px;
+}
+
+#wpadminbar .forwp-seo-ab-root-text {
+	display: inline-block;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	margin-right: 6px;
+	vertical-align: top;
+}
+
+#wpadminbar .forwp-seo-ab-pill {
 	background: #888;
 	border-radius: 50%;
 	display: inline-block;
-	height: 12px;
-	margin: 9px 4px 0 0;
+	height: 8px;
+	margin-top: 14px;
 	vertical-align: top;
-	width: 12px;
+	width: 8px;
 }
 
-#wpadminbar .forwp-seo-admin-bar-root .forwp-seo-ab-dot {
-	margin-top: 10px;
-}
-
-#wpadminbar .forwp-seo-ab-dot--good {
+#wpadminbar .forwp-seo-ab-pill--good {
 	background: #7ad03a;
 }
 
-#wpadminbar .forwp-seo-ab-dot--ok {
+#wpadminbar .forwp-seo-ab-pill--ok {
 	background: #ee7c1b;
 }
 
-#wpadminbar .forwp-seo-ab-dot--bad {
+#wpadminbar .forwp-seo-ab-pill--bad {
 	background: #dc3232;
 }
 
-#wpadminbar .forwp-seo-ab-dot--na {
+#wpadminbar .forwp-seo-ab-pill--na {
 	background: #888;
 }
 
+#wpadminbar #wp-admin-bar-forwp-seo-admin-bar-default {
+	min-width: 300px;
+	padding: 6px 0 4px;
+}
+
+#wpadminbar .forwp-seo-ab-heading {
+	color: #fff;
+	display: block;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.35;
+	max-width: 280px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#wpadminbar #wp-admin-bar-forwp-seo-admin-bar-heading > .ab-item {
+	cursor: default;
+	height: auto;
+	line-height: 1.35;
+	opacity: 1;
+	padding: 8px 14px 10px;
+}
+
+#wpadminbar #wp-admin-bar-forwp-seo-admin-bar-heading > .ab-item:hover {
+	background: transparent;
+	color: inherit;
+}
+
+#wpadminbar .forwp-seo-ab-row {
+	align-items: center;
+	display: flex;
+	gap: 10px;
+	justify-content: space-between;
+	width: 100%;
+}
+
+#wpadminbar .forwp-seo-ab-row--status {
+	min-width: 272px;
+}
+
 #wpadminbar .forwp-seo-ab-label {
-	margin-right: 8px;
+	color: #a7aaad;
+	flex: 0 0 auto;
+	font-size: 12px;
+	font-weight: 500;
 }
 
-#wpadminbar .forwp-seo-ab-value {
-	opacity: 0.85;
+#wpadminbar .forwp-seo-ab-badge {
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.3;
+	max-width: 170px;
+	overflow: hidden;
+	padding: 2px 8px;
+	text-align: right;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-#wpadminbar .forwp-seo-admin-bar-root .ab-icon {
-	margin-right: 2px;
+#wpadminbar .forwp-seo-ab-badge--good {
+	background: rgba(122, 208, 58, 0.18);
+	color: #b8e986;
+}
+
+#wpadminbar .forwp-seo-ab-badge--ok {
+	background: rgba(238, 124, 27, 0.2);
+	color: #f0b27a;
+}
+
+#wpadminbar .forwp-seo-ab-badge--bad {
+	background: rgba(220, 50, 50, 0.2);
+	color: #f0a0a0;
+}
+
+#wpadminbar .forwp-seo-ab-badge--na {
+	background: rgba(255, 255, 255, 0.08);
+	color: #c3c4c7;
+}
+
+#wpadminbar .forwp-seo-ab-node--status > .ab-item {
+	cursor: default;
+	height: auto;
+	line-height: 1.35;
+	padding: 5px 14px;
+}
+
+#wpadminbar .forwp-seo-ab-node--status > .ab-item:hover {
+	background: transparent;
+	color: inherit;
+}
+
+#wpadminbar .forwp-seo-ab-row--action {
+	justify-content: flex-start;
+}
+
+#wpadminbar .forwp-seo-ab-action-label {
+	font-size: 13px;
+	font-weight: 500;
+}
+
+#wpadminbar .forwp-seo-ab-node--action > .ab-item {
+	height: auto;
+	line-height: 1.35;
+	padding: 7px 14px;
+}
+
+#wpadminbar .forwp-seo-ab-node--actions-start > .ab-item {
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	margin-top: 6px;
+	padding-top: 9px;
+}
+
+#wpadminbar #wp-admin-bar-forwp-seo-admin-bar-gsc > .ab-item {
+	border-top: 0;
+	margin-top: 0;
+	padding-top: 7px;
+}
+
+#wpadminbar #wp-admin-bar-forwp-seo-admin-bar-inventory > .ab-item {
+	font-weight: 600;
+}
+
+#wpadminbar #wp-admin-bar-forwp-seo-admin-bar-all > .ab-item {
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	margin-top: 4px;
+	opacity: 0.9;
+	padding-top: 9px;
 }
 
 @media screen and (max-width: 782px) {
-	#wpadminbar .forwp-seo-admin-bar-root .forwp-seo-ab-dot {
-		margin-top: 16px;
+	#wpadminbar .forwp-seo-ab-root-text {
+		display: none;
+	}
+
+	#wpadminbar .forwp-seo-ab-pill {
+		margin-top: 22px;
+	}
+
+	#wpadminbar .forwp-seo-admin-bar-root .ab-icon {
+		padding: 0;
 	}
 }

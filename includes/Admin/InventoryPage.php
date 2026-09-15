@@ -104,20 +104,28 @@ final class InventoryPage {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	}
 
-	private static function render_tabs( string $active ): void {
+	private static function render_tabs( string $active, string $export_url = '' ): void {
 		$tabs = [
 			'inventory' => __( 'Inventory', '4wp-seo-helper' ),
 			'queue'     => __( 'Priority queue', '4wp-seo-helper' ),
 		];
 		?>
-		<h2 class="nav-tab-wrapper forwp-seo-inventory__tabs">
-			<?php foreach ( $tabs as $slug => $label ) : ?>
-				<a
-					href="<?php echo esc_url( admin_url( 'admin.php?page=' . Menu::INVENTORY_PAGE_SLUG . '&view=' . $slug ) ); ?>"
-					class="nav-tab<?php echo $active === $slug ? ' nav-tab-active' : ''; ?>"
-				><?php echo esc_html( $label ); ?></a>
-			<?php endforeach; ?>
-		</h2>
+		<div class="forwp-seo-inventory__tabs-row">
+			<h2 class="nav-tab-wrapper forwp-seo-inventory__tabs">
+				<?php foreach ( $tabs as $slug => $label ) : ?>
+					<a
+						href="<?php echo esc_url( admin_url( 'admin.php?page=' . Menu::INVENTORY_PAGE_SLUG . '&view=' . $slug ) ); ?>"
+						class="nav-tab<?php echo $active === $slug ? ' nav-tab-active' : ''; ?>"
+					><?php echo esc_html( $label ); ?></a>
+				<?php endforeach; ?>
+			</h2>
+			<?php if ( '' !== $export_url ) : ?>
+				<a class="forwp-seo-inventory__export" href="<?php echo esc_url( $export_url ); ?>" title="<?php esc_attr_e( 'Export CSV', '4wp-seo-helper' ); ?>">
+					<span class="dashicons dashicons-media-spreadsheet" aria-hidden="true"></span>
+					<span class="screen-reader-text"><?php esc_html_e( 'Export CSV', '4wp-seo-helper' ); ?></span>
+				</a>
+			<?php endif; ?>
+		</div>
 		<?php
 	}
 
@@ -127,7 +135,8 @@ final class InventoryPage {
 		$languages  = $provider->get_languages();
 		$show_lang  = count( $languages ) > 1;
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only admin inventory filters.
-		$filters    = [
+		$jump_post_id = isset( $_GET['forwp_post'] ) ? absint( wp_unslash( $_GET['forwp_post'] ) ) : 0;
+		$filters      = [
 			'page'      => isset( $_GET['paged'] ) ? max( 1, absint( wp_unslash( $_GET['paged'] ) ) ) : 1,
 			'post_type' => self::get_requested_post_type(),
 			'lang'      => sanitize_key( wp_unslash( (string) ( $_GET['lang'] ?? '' ) ) ),
@@ -135,16 +144,29 @@ final class InventoryPage {
 			'missing'   => sanitize_key( wp_unslash( (string) ( $_GET['missing'] ?? '' ) ) ),
 			'max_score' => isset( $_GET['max_score'] ) ? absint( wp_unslash( $_GET['max_score'] ) ) : 0,
 			'search'    => sanitize_text_field( wp_unslash( (string) ( $_GET['s'] ?? '' ) ) ),
-			'post_id'   => isset( $_GET['forwp_post'] ) ? absint( wp_unslash( $_GET['forwp_post'] ) ) : 0,
+			// Never isolate to a single row — toolbar jump highlights inside the full list.
+			'post_id'   => 0,
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		$stats = $repository->get_stats(
-			[
-				'post_type' => $filters['post_type'],
-				'status'    => $filters['status'],
-			]
-		);
+		if ( $jump_post_id > 0 ) {
+			$per_page = (int) get_user_option( Menu::INVENTORY_PER_PAGE_OPTION );
+			if ( $per_page < 1 ) {
+				$per_page = Menu::INVENTORY_PER_PAGE_DEFAULT;
+			}
+			$filters['page'] = $repository->find_page_for_post(
+				$jump_post_id,
+				[
+					'post_type' => $filters['post_type'],
+					'lang'      => $filters['lang'],
+					'status'    => $filters['status'],
+					'missing'   => $filters['missing'],
+					'max_score' => ! empty( $filters['max_score'] ) ? $filters['max_score'] : null,
+					'search'    => $filters['search'],
+				],
+				$per_page
+			);
+		}
 
 		$table = new InventoryListTable( $repository );
 		$table->set_show_language( $show_lang );
@@ -164,6 +186,8 @@ final class InventoryPage {
 						'max_score'                  => ! empty( $filters['max_score'] ) ? (string) $filters['max_score'] : '',
 						's'                          => $filters['search'],
 						'paged'                      => $filters['page'] > 1 ? (string) $filters['page'] : '',
+						'orderby'                    => self::request_orderby(),
+						'order'                      => self::request_order(),
 					]
 				),
 				admin_url( 'admin.php' )
@@ -192,27 +216,8 @@ final class InventoryPage {
 		?>
 		<div class="wrap forwp-seo-inventory">
 			<h1><?php esc_html_e( 'SEO Inventory', '4wp-seo-helper' ); ?></h1>
-			<p>
-				<?php esc_html_e( 'Site-wide SEO fields. Use Index status / Request indexing on each row when Search Console is connected.', '4wp-seo-helper' ); ?>
-				<?php if ( self::should_show_gsc_metrics() ) : ?>
-					<?php
-					printf(
-						' %s',
-						esc_html(
-							sprintf(
-								/* translators: %s: date range label */
-								__( 'GSC clicks/impressions are joined by URL path from synced data (%s).', '4wp-seo-helper' ),
-								ReportPeriod::label()
-							)
-						)
-					);
-					?>
-				<?php endif; ?>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . Menu::SETTINGS_PAGE_SLUG . '&tab=settings' ) ); ?>"><?php esc_html_e( 'Configure tier names', '4wp-seo-helper' ); ?></a>
-				<a class="page-title-action" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export CSV', '4wp-seo-helper' ); ?></a>
-			</p>
 
-			<?php self::render_tabs( 'inventory' ); ?>
+			<?php self::render_tabs( 'inventory', $export_url ); ?>
 
 			<?php if ( ! GscModule::get_instance()->is_enabled() ) : ?>
 				<div class="notice notice-warning">
@@ -230,56 +235,21 @@ final class InventoryPage {
 				</div>
 			<?php endif; ?>
 
-			<?php if ( $filters['post_id'] > 0 ) : ?>
-				<div class="notice notice-info">
+			<?php if ( $jump_post_id > 0 ) : ?>
+				<div class="notice notice-info is-dismissible">
 					<p>
 						<?php
 						printf(
 							/* translators: %s: post title */
-							esc_html__( 'Showing “%s” from the toolbar. Pagination is skipped for this jump.', '4wp-seo-helper' ),
-							esc_html( get_the_title( $filters['post_id'] ) )
+							esc_html__( 'Jumped to “%s” — highlighted in the full inventory.', '4wp-seo-helper' ),
+							esc_html( get_the_title( $jump_post_id ) ?: ( '#' . $jump_post_id ) )
 						);
 						?>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . Menu::INVENTORY_PAGE_SLUG . '&view=inventory' ) ); ?>">
-							<?php esc_html_e( 'Full inventory', '4wp-seo-helper' ); ?>
-						</a>
 					</p>
 				</div>
 			<?php endif; ?>
 
 			<p class="forwp-seo-inventory__drag-status" aria-live="polite"></p>
-
-			<div class="forwp-seo-inventory__stats">
-				<p>
-					<strong><?php esc_html_e( 'Posts:', '4wp-seo-helper' ); ?></strong>
-					<?php echo esc_html( (string) $stats['posts'] ); ?>
-					&nbsp;|&nbsp;
-					<strong><?php esc_html_e( 'Avg completeness:', '4wp-seo-helper' ); ?></strong>
-					<?php echo esc_html( (string) $stats['avg_completeness'] ); ?>%
-				</p>
-				<?php if ( $show_lang && ! empty( $stats['by_language'] ) ) : ?>
-					<p><strong><?php esc_html_e( 'By language:', '4wp-seo-helper' ); ?></strong>
-					<?php
-					$parts = [];
-					foreach ( $stats['by_language'] as $code => $data ) {
-						$parts[] = $code . ': ' . (int) $data['count'] . ' (' . (int) $data['avg_completeness'] . '%)';
-					}
-					echo esc_html( implode( ' · ', $parts ) );
-					?>
-					</p>
-				<?php endif; ?>
-				<?php if ( ! empty( $stats['missing_counts'] ) ) : ?>
-					<p><strong><?php esc_html_e( 'Missing fields:', '4wp-seo-helper' ); ?></strong>
-					<?php
-					$missing_parts = [];
-					foreach ( $stats['missing_counts'] as $field => $count ) {
-						$missing_parts[] = sprintf( '%s: %d', $field, (int) $count );
-					}
-					echo esc_html( implode( ' · ', $missing_parts ) );
-					?>
-					</p>
-				<?php endif; ?>
-			</div>
 
 			<form method="get">
 				<input type="hidden" name="page" value="<?php echo esc_attr( Menu::INVENTORY_PAGE_SLUG ); ?>" />
@@ -496,6 +466,8 @@ final class InventoryPage {
 						'view'     => 'queue',
 						'priority' => $active_priority ? (string) $active_priority : '',
 						'paged'    => $paged > 1 ? (string) $paged : '',
+						'orderby'  => self::request_orderby(),
+						'order'    => self::request_order(),
 					]
 				),
 				admin_url( 'admin.php' )
@@ -667,6 +639,24 @@ final class InventoryPage {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		return sanitize_key( $raw );
+	}
+
+	private static function request_orderby(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list table sort.
+		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( (string) $_GET['orderby'] ) ) : '';
+
+		return 'gsc_index_status' === $orderby ? 'gsc_index_status' : '';
+	}
+
+	private static function request_order(): string {
+		if ( '' === self::request_orderby() ) {
+			return '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list table sort.
+		$order = isset( $_GET['order'] ) ? strtolower( sanitize_key( wp_unslash( (string) $_GET['order'] ) ) ) : 'asc';
+
+		return 'desc' === $order ? 'desc' : 'asc';
 	}
 
 	public static function should_show_gsc_metrics(): bool {

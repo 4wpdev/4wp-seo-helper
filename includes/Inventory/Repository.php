@@ -40,6 +40,14 @@ final class Repository {
 		$sort_by_priority    = ! empty( $args['sort_by_priority'] );
 		$priority_filter     = $args['priority_filter'] ?? null;
 		$has_priority_filter = null !== $priority_filter && '' !== $priority_filter && false !== $priority_filter;
+		$orderby             = sanitize_key( (string) ( $args['orderby'] ?? '' ) );
+		$order               = strtolower( sanitize_key( (string) ( $args['order'] ?? 'asc' ) ) );
+		if ( 'gsc_index_status' !== $orderby ) {
+			$orderby = '';
+		}
+		if ( 'desc' !== $order ) {
+			$order = 'asc';
+		}
 
 		$has_post_filters = '' !== $missing || null !== $min_score || null !== $max_score || $sort_by_priority || $has_priority_filter;
 
@@ -94,8 +102,12 @@ final class Repository {
 			$records[] = $record;
 		}
 
-		if ( $sort_by_priority ) {
+		if ( $sort_by_priority && 'gsc_index_status' !== $orderby ) {
 			$records = ( new PriorityQueue() )->sort_records( $records );
+		}
+
+		if ( 'gsc_index_status' === $orderby ) {
+			$records = $this->sort_records_by_index_status( $records, $order );
 		}
 
 		if ( $has_priority_filter ) {
@@ -130,6 +142,69 @@ final class Repository {
 			'per_page'    => $per_page,
 			'total_pages' => $per_page > 0 ? (int) ceil( $total / $per_page ) : 0,
 		];
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $records
+	 * @return list<array<string, mixed>>
+	 */
+	private function sort_records_by_index_status( array $records, string $order ): array {
+		$direction = 'desc' === $order ? -1 : 1;
+
+		usort(
+			$records,
+			static function ( array $left, array $right ) use ( $direction ): int {
+				$cmp = Indexing::inventory_status_rank( $left ) <=> Indexing::inventory_status_rank( $right );
+				if ( 0 !== $cmp ) {
+					return $cmp * $direction;
+				}
+
+				$label_cmp = strcasecmp(
+					Indexing::inventory_status_label( $left ),
+					Indexing::inventory_status_label( $right )
+				);
+				if ( 0 !== $label_cmp ) {
+					return $label_cmp * $direction;
+				}
+
+				return ( (int) ( $left['post_id'] ?? 0 ) ) <=> ( (int) ( $right['post_id'] ?? 0 ) );
+			}
+		);
+
+		return $records;
+	}
+
+	/**
+	 * Page number (1-based) where a post appears in the priority-sorted inventory.
+	 *
+	 * @param array<string, mixed> $args Same filters as query(), without post_id/page.
+	 */
+	public function find_page_for_post( int $post_id, array $args, int $per_page ): int {
+		$post_id  = absint( $post_id );
+		$per_page = max( 1, $per_page );
+		if ( $post_id <= 0 ) {
+			return 1;
+		}
+
+		$result = $this->query(
+			array_merge(
+				$args,
+				[
+					'page'             => 1,
+					'per_page'         => 100000,
+					'post_id'          => 0,
+					'sort_by_priority' => true,
+				]
+			)
+		);
+
+		foreach ( $result['items'] as $index => $item ) {
+			if ( (int) ( $item['post_id'] ?? 0 ) === $post_id ) {
+				return (int) floor( $index / $per_page ) + 1;
+			}
+		}
+
+		return 1;
 	}
 
 	/**

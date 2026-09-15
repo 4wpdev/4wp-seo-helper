@@ -10,7 +10,7 @@ A plugin by **[4WP](https://4wp.dev/)**
 
 > WordPress.org listing uses **[readme.txt](../readme.txt)** in the plugin root (not this file).
 
-## Features (v1.0.0)
+## Features (v2.2.0)
 
 - **SEO Inventory table** — filters, missing-field views, CSV export, quick edit
 - **Priority queue** — P1 / P2 / P3 business tiers (names configurable in Settings)
@@ -19,6 +19,8 @@ A plugin by **[4WP](https://4wp.dev/)**
 - **Multilingual** — Polylang, WPML, or single-language sites
 - **REST API** — sync with Google Sheets or external dashboards (`google-sheets-sync.gs`)
 - **Post type discovery** — public CPTs with `show_ui`; exclude via filter
+- **AI Assistant** — WordPress AI Client (`Settings → Connectors`); inventory Generate for title / description / keyphrases
+- **Dashboard & Dynamics** — configurable widgets, 7/28/90d GSC ranges; change list with pagination
 
 ### Coming soon (in codebase)
 
@@ -33,6 +35,7 @@ TechArticle schema & blocks, LLMS.txt, and cross posting ship in future releases
 3. Review completeness scores and missing SEO fields site-wide.
 4. Drag rows into **P1 / P2 / P3** to mark business priority (independent of score).
 5. Optional: enable the REST API under **Settings** and connect Sheets or your dashboard.
+6. Optional: **Settings → Connectors** for AI SEO copy (WordPress AI Client).
 
 Priority reflects **business importance** (e.g. main service pages), not SEO score—a page can stay in P1 at 100%.
 
@@ -55,14 +58,18 @@ On activation, the inventory API token is created and the module is enabled by d
 - WordPress **6.0+**
 - PHP **8.0+**
 - **Yoast SEO** or **All in One SEO** (recommended for inventory read/write)
+- Optional: WordPress AI Client + a connector under **Settings → Connectors**
 
 ## Admin
 
 | Screen | Path |
 |--------|------|
-| Overview & settings | **4WP SEO** (`forwp-seo`) |
+| Dashboard | **4WP SEO** (`forwp-seo`) |
 | Inventory table | **4WP SEO → SEO Inventory** (`forwp-seo-inventory`) |
-| Inventory API | **4WP SEO → Inventory API** |
+| Dynamics | **4WP SEO → Dynamics** (`forwp-seo-dynamics`) |
+| Search Console | **4WP SEO → GSC** (`forwp-seo-gsc`) |
+| AI Assistant | **4WP SEO → AI Assistant** (`forwp-seo-ai`) |
+| Settings / Inventory API | **4WP SEO → Settings** (`forwp-seo-settings`) |
 
 ## REST API
 

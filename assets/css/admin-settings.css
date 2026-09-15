@@ -624,6 +624,394 @@
 	max-width: 1280px;
 }
 
+/* —— Dashboard (Site Kit–like panes, WP-native) —— */
+
+.forwp-seo-dash__header {
+	align-items: flex-start;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px 24px;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.forwp-seo-dash__lead {
+	margin-bottom: 0;
+	margin-top: 4px;
+}
+
+.forwp-seo-dash__header-meta {
+	align-items: flex-end;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.forwp-seo-dash__period {
+	background: #f0f0f1;
+	border-radius: 999px;
+	color: #2c3338;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.3;
+	padding: 4px 10px;
+}
+
+.forwp-seo-dash__period-form {
+	margin: 0;
+}
+
+.forwp-seo-dash__period-select {
+	background: #f0f0f1;
+	border: 1px solid #dcdcde;
+	border-radius: 999px;
+	color: #2c3338;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.3;
+	max-width: 100%;
+	padding: 5px 10px;
+}
+
+.forwp-seo-dash__links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	justify-content: flex-end;
+}
+
+.forwp-seo-dash__links a {
+	font-size: 13px;
+	text-decoration: none;
+}
+
+.forwp-seo-dash__section {
+	margin: 20px 0 8px;
+}
+
+.forwp-seo-dash__section-head {
+	margin-bottom: 12px;
+}
+
+.forwp-seo-dash__section-title {
+	font-size: 15px;
+	font-weight: 600;
+	margin: 0 0 4px;
+}
+
+.forwp-seo-dash__section-desc {
+	color: #646970;
+	font-size: 13px;
+	margin: 0;
+}
+
+.forwp-seo-metric-grid {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.forwp-seo-metric-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	padding: 14px 16px;
+}
+
+.forwp-seo-metric-card__top {
+	align-items: flex-start;
+	display: flex;
+	gap: 8px;
+	justify-content: space-between;
+	margin-bottom: 6px;
+}
+
+.forwp-seo-metric-card__value {
+	font-size: 1.65rem;
+	font-weight: 650;
+	letter-spacing: -0.02em;
+	line-height: 1.15;
+	margin: 0;
+}
+
+.forwp-seo-metric-card__label {
+	color: #50575e;
+	font-size: 13px;
+	line-height: 1.35;
+	margin: 0;
+}
+
+.forwp-seo-metric-card__label a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.forwp-seo-metric-card__label a:hover {
+	color: #2271b1;
+	text-decoration: underline;
+}
+
+.forwp-seo-metric-card.is-alert {
+	background: #fcf0f1;
+	border-color: #e2a2a7;
+}
+
+.forwp-seo-metric-card.is-alert .forwp-seo-metric-card__value {
+	color: #8a2424;
+}
+
+.forwp-seo-metric-card.is-warn {
+	background: #fff8e5;
+	border-color: #e2c36d;
+}
+
+.forwp-seo-metric-card.is-ok {
+	background: #edfaef;
+	border-color: #b8e0bf;
+}
+
+.forwp-seo-metric-card.is-up {
+	border-color: #b8e0bf;
+}
+
+.forwp-seo-delta {
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: 650;
+	line-height: 1.3;
+	padding: 2px 6px;
+	white-space: nowrap;
+}
+
+.forwp-seo-delta--up {
+	background: #edfaef;
+	color: #1e7e34;
+}
+
+.forwp-seo-delta--down {
+	background: #fcf0f1;
+	color: #8a2424;
+}
+
+.forwp-seo-delta--flat {
+	background: #f0f0f1;
+	color: #50575e;
+}
+
+.forwp-seo-dash__panes {
+	display: grid;
+	gap: 16px;
+	margin: 16px 0;
+}
+
+.forwp-seo-dash__panes--2 {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.forwp-seo-pane {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.forwp-seo-pane__header {
+	border-bottom: 1px solid #f0f0f1;
+	padding: 14px 16px 12px;
+}
+
+.forwp-seo-pane__title {
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0 0 4px;
+}
+
+.forwp-seo-pane__desc {
+	color: #646970;
+	font-size: 12px;
+	line-height: 1.4;
+	margin: 0;
+}
+
+.forwp-seo-pane__subtitle {
+	color: #1d2327;
+	font-size: 12px;
+	font-weight: 600;
+	margin: 14px 0 8px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.forwp-seo-pane__body {
+	flex: 1;
+	padding: 12px 16px 14px;
+}
+
+.forwp-seo-pane__empty {
+	color: #646970;
+	font-size: 13px;
+	line-height: 1.5;
+	margin: 0;
+}
+
+.forwp-seo-pane__footer {
+	border-top: 1px solid #f0f0f1;
+	font-size: 13px;
+	margin: 12px 0 0;
+	padding-top: 10px;
+}
+
+.forwp-seo-pane-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.forwp-seo-pane-list__item {
+	align-items: flex-start;
+	border-top: 1px solid #f0f0f1;
+	display: flex;
+	gap: 12px;
+	justify-content: space-between;
+	padding: 9px 0;
+}
+
+.forwp-seo-pane-list__item:first-child {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.forwp-seo-pane-list__item.is-weak {
+	background: transparent;
+}
+
+.forwp-seo-pane-list__label {
+	color: #1d2327;
+	flex: 1;
+	font-size: 13px;
+	line-height: 1.4;
+	min-width: 0;
+	overflow: hidden;
+	text-decoration: none;
+	text-overflow: ellipsis;
+}
+
+a.forwp-seo-pane-list__label:hover {
+	color: #2271b1;
+}
+
+.forwp-seo-pane-list__meta {
+	color: #50575e;
+	flex: 0 0 auto;
+	font-size: 12px;
+	line-height: 1.35;
+	text-align: right;
+}
+
+.forwp-seo-pane-list__sub {
+	color: #8c8f94;
+	display: block;
+	font-size: 11px;
+	margin-top: 2px;
+	max-width: 160px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.forwp-seo-pane-list--compact .forwp-seo-pane-list__item {
+	padding: 6px 0;
+}
+
+.forwp-seo-pane-stats {
+	display: grid;
+	gap: 10px;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	list-style: none;
+	margin: 0 0 4px;
+	padding: 0;
+}
+
+.forwp-seo-pane-stats li {
+	align-items: baseline;
+	background: #f6f7f7;
+	border-radius: 4px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 8px;
+	padding: 10px 12px;
+}
+
+.forwp-seo-pane-stats__label {
+	color: #646970;
+	flex: 1 1 100%;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.forwp-seo-pane-stats strong {
+	font-size: 1.15rem;
+	font-weight: 650;
+}
+
+.forwp-seo-pane-stats--growth {
+	margin-top: 12px;
+}
+
+.forwp-seo-gap-grid {
+	display: grid;
+	gap: 10px;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.forwp-seo-gap-card {
+	background: #f6f7f7;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	padding: 12px;
+}
+
+.forwp-seo-gap-card.is-warn {
+	background: #fff8e5;
+	border-color: #e2c36d;
+}
+
+.forwp-seo-gap-card.is-ok {
+	background: #edfaef;
+	border-color: #b8e0bf;
+}
+
+.forwp-seo-gap-card__value {
+	display: block;
+	font-size: 1.35rem;
+	font-weight: 650;
+	letter-spacing: -0.02em;
+	line-height: 1.2;
+}
+
+.forwp-seo-gap-card__label {
+	color: #50575e;
+	display: block;
+	font-size: 12px;
+	margin-top: 4px;
+}
+
+.forwp-seo-dash__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 8px 0 24px;
+}
+
 .forwp-seo-dash-legend,
 .forwp-seo-dash-list {
 	margin: 8px 0 0;
@@ -780,24 +1168,89 @@
 	color: #8a2424;
 }
 
+.forwp-seo-dynamics-lead {
+	margin: 0 0 8px;
+}
+
+.forwp-seo-dynamics-toolbar {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	justify-content: flex-end;
+	margin: 0 0 12px;
+}
+
+.forwp-seo-dynamics-change {
+	color: #2c3338;
+	display: inline-block;
+	font-size: 13px;
+	margin-left: 8px;
+}
+
+.forwp-seo-dynamics-pager {
+	clear: both;
+	height: auto;
+	margin: 12px 0 0;
+	padding: 8px 0 0;
+}
+
+.forwp-seo-dynamics-pager .tablenav-pages {
+	float: none;
+	font-size: 13px;
+	text-align: right;
+	width: 100%;
+}
+
+.forwp-seo-dynamics-pager .tablenav-pages .pagination-links {
+	display: inline-block;
+	margin-left: 8px;
+}
+
+.forwp-seo-dynamics-pager .tablenav-pages a,
+.forwp-seo-dynamics-pager .tablenav-pages span.page-numbers {
+	display: inline-block;
+	min-width: 2em;
+	padding: 4px 8px;
+}
+
+.forwp-seo-dynamics-waiting {
+	margin: 0 0 12px;
+}
+
 .forwp-seo-dynamics-search {
 	align-items: center;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
-	margin: 12px 0;
+	margin: 0;
 }
 
 .forwp-seo-dynamics-search input[type="search"] {
-	min-width: 240px;
+	min-width: 220px;
 }
 
-.forwp-seo-dynamics-table {
-	margin-top: 8px;
+.forwp-seo-admin-app .forwp-seo-dynamics-table {
+	border: none;
+	margin: 0;
+}
+
+.forwp-seo-dynamics-table .forwp-seo-badge {
+	background: #f0f0f1;
+	color: #2c3338;
 }
 
 @media (max-width: 960px) {
-	.forwp-seo-dash-split {
+	.forwp-seo-dash-split,
+	.forwp-seo-dash__panes--2 {
 		grid-template-columns: 1fr;
+	}
+
+	.forwp-seo-dash__header-meta {
+		align-items: flex-start;
+	}
+
+	.forwp-seo-dash__links {
+		justify-content: flex-start;
 	}
 }

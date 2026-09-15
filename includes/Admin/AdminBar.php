@@ -1,6 +1,6 @@
 <?php
 /**
- * Frontend toolbar: short page checklist (title, last indexed, GSC).
+ * Frontend toolbar: clear page SEO status + actions (no upsells).
  */
 
 namespace Forwp\SeoHelper\Admin;
@@ -86,11 +86,11 @@ final class AdminBar {
 		$wp_admin_bar->add_node(
 			[
 				'id'    => self::NODE_ID,
-				'href'  => $post_id > 0 ? InventoryPage::url_for_post( $post_id ) : admin_url( 'admin.php?page=' . Menu::PAGE_SLUG ),
+				'href'  => $post_id > 0 ? InventoryPage::url_for_post( $post_id ) : admin_url( 'admin.php?page=' . Menu::INVENTORY_PAGE_SLUG ),
 				'title' => self::root_title( $seo ),
 				'meta'  => [
-					'class' => 'forwp-seo-admin-bar-root',
-					'title' => __( '4WP SEO', '4wp-seo-helper' ),
+					'class' => 'menupop forwp-seo-admin-bar-root',
+					'title' => __( '4WP SEO — page status and actions', '4wp-seo-helper' ),
 				],
 			]
 		);
@@ -104,10 +104,21 @@ final class AdminBar {
 			[
 				'parent' => self::NODE_ID,
 				'id'     => self::NODE_ID . '-inventory',
-				'title'  => __( 'SEO Inventory', '4wp-seo-helper' ),
+				'title'  => self::action_row( __( 'Open SEO Inventory', '4wp-seo-helper' ) ),
 				'href'   => admin_url( 'admin.php?page=' . Menu::INVENTORY_PAGE_SLUG ),
 			]
 		);
+
+		if ( GscModule::get_instance()->is_enabled() ) {
+			$wp_admin_bar->add_node(
+				[
+					'parent' => self::NODE_ID,
+					'id'     => self::NODE_ID . '-gsc-home',
+					'title'  => self::action_row( __( 'Search Console', '4wp-seo-helper' ) ),
+					'href'   => admin_url( 'admin.php?page=' . Menu::GSC_PAGE_SLUG ),
+				]
+			);
+		}
 	}
 
 	/**
@@ -115,7 +126,6 @@ final class AdminBar {
 	 */
 	private static function add_post_items( \WP_Admin_Bar $wp_admin_bar, int $post_id, array $seo ): void {
 		$title = get_the_title( $post_id );
-		$url   = (string) get_permalink( $post_id );
 		if ( '' === $title ) {
 			$title = '#' . $post_id;
 		}
@@ -123,38 +133,79 @@ final class AdminBar {
 		$wp_admin_bar->add_node(
 			[
 				'parent' => self::NODE_ID,
-				'id'     => self::NODE_ID . '-page',
-				'title'  => self::row_label( __( 'Page', '4wp-seo-helper' ), $title ),
-				'href'   => '' !== $url ? $url : '',
+				'id'     => self::NODE_ID . '-heading',
+				'title'  => '<span class="forwp-seo-ab-heading">' . esc_html( wp_html_excerpt( $title, 42, '…' ) ) . '</span>',
+				'href'   => false,
 				'meta'   => [
-					'title' => __( 'Open this page', '4wp-seo-helper' ),
+					'class' => 'forwp-seo-ab-node forwp-seo-ab-node--heading',
 				],
 			]
 		);
 
-		$indexed = self::last_indexed_label( $post_id );
+		$seo_status = self::seo_status( $seo );
+		$wp_admin_bar->add_node(
+			[
+				'parent' => self::NODE_ID,
+				'id'     => self::NODE_ID . '-seo',
+				'title'  => self::status_row(
+					__( 'SEO score', '4wp-seo-helper' ),
+					$seo_status['label'],
+					$seo_status['tone']
+				),
+				'href'   => false,
+				'meta'   => [
+					'class' => 'forwp-seo-ab-node forwp-seo-ab-node--status',
+					'title' => $seo_status['hint'],
+				],
+			]
+		);
+
+		$focus = self::focus_status( $seo );
+		$wp_admin_bar->add_node(
+			[
+				'parent' => self::NODE_ID,
+				'id'     => self::NODE_ID . '-focus',
+				'title'  => self::status_row(
+					__( 'Focus keyphrase', '4wp-seo-helper' ),
+					$focus['label'],
+					$focus['tone']
+				),
+				'href'   => false,
+				'meta'   => [
+					'class' => 'forwp-seo-ab-node forwp-seo-ab-node--status',
+					'title' => $focus['hint'],
+				],
+			]
+		);
+
+		$indexed = self::index_status( $post_id );
 		$wp_admin_bar->add_node(
 			[
 				'parent' => self::NODE_ID,
 				'id'     => self::NODE_ID . '-indexed',
-				'title'  => self::row_label( __( 'Last indexed', '4wp-seo-helper' ), $indexed['label'] ),
+				'title'  => self::status_row(
+					__( 'Google index', '4wp-seo-helper' ),
+					$indexed['label'],
+					$indexed['tone']
+				),
 				'href'   => false,
 				'meta'   => [
-					'title' => $indexed['title'],
+					'class' => 'forwp-seo-ab-node forwp-seo-ab-node--status',
+					'title' => $indexed['hint'],
 				],
 			]
 		);
 
-		$gsc = self::gsc_row( $post_id );
+		$gsc = self::gsc_action( $post_id );
 		if ( is_array( $gsc ) ) {
 			$wp_admin_bar->add_node(
 				[
 					'parent' => self::NODE_ID,
 					'id'     => self::NODE_ID . '-gsc',
-					'title'  => $gsc['title'],
+					'title'  => self::action_row( __( 'Inspect in Search Console', '4wp-seo-helper' ) ),
 					'href'   => $gsc['href'],
 					'meta'   => [
-						'class'  => 'forwp-seo-ab-gsc-link',
+						'class'  => 'forwp-seo-ab-node forwp-seo-ab-node--action forwp-seo-ab-node--actions-start forwp-seo-ab-gsc-link',
 						'target' => '_blank',
 						'rel'    => 'noopener noreferrer',
 						'title'  => __( 'Open URL Inspection in Google Search Console', '4wp-seo-helper' ),
@@ -167,8 +218,13 @@ final class AdminBar {
 			[
 				'parent' => self::NODE_ID,
 				'id'     => self::NODE_ID . '-inventory',
-				'title'  => __( 'This URL in Inventory', '4wp-seo-helper' ),
+				'title'  => self::action_row( __( 'Find in SEO Inventory', '4wp-seo-helper' ) ),
 				'href'   => InventoryPage::url_for_post( $post_id ),
+				'meta'   => [
+					'class' => 'forwp-seo-ab-node forwp-seo-ab-node--action forwp-seo-ab-node--primary'
+						. ( is_array( $gsc ) ? '' : ' forwp-seo-ab-node--actions-start' ),
+					'title' => __( 'Open the full inventory and highlight this URL', '4wp-seo-helper' ),
+				],
 			]
 		);
 
@@ -178,45 +234,148 @@ final class AdminBar {
 				[
 					'parent' => self::NODE_ID,
 					'id'     => self::NODE_ID . '-edit',
-					'title'  => __( 'Edit', '4wp-seo-helper' ),
+					'title'  => self::action_row( __( 'Edit page', '4wp-seo-helper' ) ),
 					'href'   => $edit,
+					'meta'   => [
+						'class' => 'forwp-seo-ab-node forwp-seo-ab-node--action',
+					],
 				]
 			);
 		}
 
-		unset( $seo );
+		$wp_admin_bar->add_node(
+			[
+				'parent' => self::NODE_ID,
+				'id'     => self::NODE_ID . '-all',
+				'title'  => self::action_row( __( 'All URLs in Inventory', '4wp-seo-helper' ) ),
+				'href'   => admin_url( 'admin.php?page=' . Menu::INVENTORY_PAGE_SLUG . '&view=inventory' ),
+				'meta'   => [
+					'class' => 'forwp-seo-ab-node forwp-seo-ab-node--action forwp-seo-ab-node--footer',
+				],
+			]
+		);
 	}
 
 	/**
 	 * @param array<string, mixed>|null $seo SEO payload.
 	 */
 	private static function root_title( ?array $seo ): string {
-		$icon = '<span class="ab-icon dashicons dashicons-chart-line" aria-hidden="true"></span>';
-		$dots = '';
+		$tone  = 'na';
+		$label = __( '4WP SEO', '4wp-seo-helper' );
 
 		if ( is_array( $seo ) ) {
-			$dots = self::dot( self::tone( $seo['seo'] ?? null, ! empty( $seo['noFocus'] ) ), __( 'SEO score', '4wp-seo-helper' ) );
+			$status = self::seo_status( $seo );
+			$tone   = $status['tone'];
+			$label  = '4WP SEO';
 		}
 
-		return $icon . $dots . '<span class="screen-reader-text">' . esc_html__( '4WP SEO', '4wp-seo-helper' ) . '</span>';
-	}
-
-	private static function row_label( string $label, string $value ): string {
-		return '<span class="forwp-seo-ab-label">' . esc_html( $label ) . '</span> '
-			. '<span class="forwp-seo-ab-value">' . esc_html( $value ) . '</span>';
+		return '<span class="ab-icon dashicons dashicons-chart-line" aria-hidden="true"></span>'
+			. '<span class="forwp-seo-ab-root-text">' . esc_html( $label ) . '</span>'
+			. '<span class="forwp-seo-ab-pill forwp-seo-ab-pill--' . esc_attr( $tone ) . '" aria-hidden="true"></span>'
+			. '<span class="screen-reader-text">' . esc_html__( '4WP SEO page status', '4wp-seo-helper' ) . '</span>';
 	}
 
 	/**
-	 * @return array{label:string,title:string}
+	 * @param array<string, mixed> $seo SEO payload.
+	 * @return array{label:string,tone:string,hint:string}
 	 */
-	private static function last_indexed_label( int $post_id ): array {
-		$fields = Indexing::inventory_fields( $post_id );
-		$crawl  = (string) ( $fields['gsc_last_crawl'] ?? '' );
+	private static function seo_status( array $seo ): array {
+		if ( ! empty( $seo['noFocus'] ) ) {
+			return [
+				'label' => __( 'Needs focus', '4wp-seo-helper' ),
+				'tone'  => 'na',
+				'hint'  => __( 'Set a focus keyphrase to get an SEO score', '4wp-seo-helper' ),
+			];
+		}
+
+		$score = $seo['seo'] ?? null;
+		if ( null === $score || '' === $score ) {
+			return [
+				'label' => __( 'No score yet', '4wp-seo-helper' ),
+				'tone'  => 'na',
+				'hint'  => __( 'SEO score is not available for this page', '4wp-seo-helper' ),
+			];
+		}
+
+		$n = (int) $score;
+		if ( $n >= 71 ) {
+			return [
+				'label' => sprintf(
+					/* translators: %d: SEO score 0–100 */
+					__( 'Good (%d)', '4wp-seo-helper' ),
+					$n
+				),
+				'tone'  => 'good',
+				'hint'  => __( 'SEO score looks healthy', '4wp-seo-helper' ),
+			];
+		}
+		if ( $n >= 41 ) {
+			return [
+				'label' => sprintf(
+					/* translators: %d: SEO score 0–100 */
+					__( 'OK (%d)', '4wp-seo-helper' ),
+					$n
+				),
+				'tone'  => 'ok',
+				'hint'  => __( 'SEO score could be improved', '4wp-seo-helper' ),
+			];
+		}
+
+		return [
+			'label' => sprintf(
+				/* translators: %d: SEO score 0–100 */
+				__( 'Needs work (%d)', '4wp-seo-helper' ),
+				$n
+			),
+			'tone'  => 'bad',
+			'hint'  => __( 'SEO score needs attention', '4wp-seo-helper' ),
+		];
+	}
+
+	/**
+	 * @param array<string, mixed> $seo SEO payload.
+	 * @return array{label:string,tone:string,hint:string}
+	 */
+	private static function focus_status( array $seo ): array {
+		$phrase = trim( (string) ( $seo['focus'] ?? '' ) );
+		if ( '' === $phrase || ! empty( $seo['noFocus'] ) ) {
+			return [
+				'label' => __( 'Not set', '4wp-seo-helper' ),
+				'tone'  => 'bad',
+				'hint'  => __( 'No focus keyphrase on this page', '4wp-seo-helper' ),
+			];
+		}
+
+		return [
+			'label' => wp_html_excerpt( $phrase, 28, '…' ),
+			'tone'  => 'good',
+			'hint'  => $phrase,
+		];
+	}
+
+	/**
+	 * @return array{label:string,tone:string,hint:string}
+	 */
+	private static function index_status( int $post_id ): array {
+		$fields   = Indexing::inventory_fields( $post_id );
+		$coverage = (string) ( $fields['gsc_coverage'] ?? '' );
+		$crawl    = (string) ( $fields['gsc_last_crawl'] ?? '' );
+
+		if ( '' !== $coverage ) {
+			$tone = self::gsc_tone( $coverage );
+			return [
+				'label' => wp_html_excerpt( $coverage, 28, '…' ),
+				'tone'  => $tone,
+				'hint'  => $coverage,
+			];
+		}
+
 		if ( '' !== $crawl ) {
 			$formatted = self::format_time( $crawl );
 			return [
 				'label' => $formatted,
-				'title' => sprintf(
+				'tone'  => 'ok',
+				'hint'  => sprintf(
 					/* translators: %s: last crawl datetime */
 					__( 'Google last crawled this URL on %s', '4wp-seo-helper' ),
 					$formatted
@@ -228,47 +387,41 @@ final class AdminBar {
 		if ( $requested > 0 ) {
 			$formatted = wp_date( 'd.m.Y H:i', $requested );
 			return [
-				'label' => sprintf(
+				'label' => __( 'Requested', '4wp-seo-helper' ),
+				'tone'  => 'ok',
+				'hint'  => sprintf(
 					/* translators: %s: datetime when indexing was requested */
-					__( 'Requested %s', '4wp-seo-helper' ),
+					__( 'Indexing requested %s — waiting for crawl', '4wp-seo-helper' ),
 					is_string( $formatted ) ? $formatted : ''
 				),
-				'title' => __( 'Indexing requested, waiting for crawl', '4wp-seo-helper' ),
 			];
 		}
 
 		return [
-			'label' => __( 'Not yet', '4wp-seo-helper' ),
-			'title' => __( 'No crawl or index request recorded', '4wp-seo-helper' ),
+			'label' => __( 'Not crawled yet', '4wp-seo-helper' ),
+			'tone'  => 'na',
+			'hint'  => __( 'No crawl or index request recorded for this URL', '4wp-seo-helper' ),
 		];
 	}
 
 	/**
-	 * @return array{title:string,href:string}|null
+	 * @return array{href:string}|null
 	 */
-	private static function gsc_row( int $post_id ): ?array {
+	private static function gsc_action( int $post_id ): ?array {
 		if ( ! GscModule::get_instance()->is_enabled() || ! GscAdmin::get_instance()->is_connected() ) {
 			return null;
 		}
 
-		$raw      = get_post_meta( $post_id, Indexing::META_LAST_STATUS, true );
-		$coverage = '';
-		$link     = '';
+		$raw  = get_post_meta( $post_id, Indexing::META_LAST_STATUS, true );
+		$link = '';
 		if ( is_string( $raw ) && '' !== $raw ) {
 			$decoded = json_decode( $raw, true );
 			if ( is_array( $decoded ) ) {
-				$coverage = sanitize_text_field( (string) ( $decoded['coverage'] ?? '' ) );
-				$link     = esc_url_raw( (string) ( $decoded['inspectLink'] ?? '' ) );
+				$link = esc_url_raw( (string) ( $decoded['inspectLink'] ?? '' ) );
 			}
 		}
 
 		$site = GscAdmin::get_site_property();
-		$url  = (string) get_permalink( $post_id );
-		if ( '' !== $site ) {
-			$url = PropertyResolver::rewrite_url_for_property( $url, $site );
-		}
-		unset( $url );
-
 		$href = PropertyResolver::is_valid_inspection_result_link( $link )
 			? $link
 			: '#forwp-seo-gsc-inspect';
@@ -276,14 +429,20 @@ final class AdminBar {
 			$href = admin_url( 'admin.php?page=' . Menu::SETTINGS_PAGE_SLUG . '&tab=gsc' );
 		}
 
-		$status = '' !== $coverage ? $coverage : __( 'Inspect URL', '4wp-seo-helper' );
+		return [ 'href' => $href ];
+	}
 
-		return [
-			'title' => self::dot( self::gsc_tone( $coverage ), __( 'Search Console', '4wp-seo-helper' ) )
-				. '<span class="forwp-seo-ab-label">' . esc_html__( 'Search Console', '4wp-seo-helper' ) . '</span>'
-				. '<span class="forwp-seo-ab-value">' . esc_html( $status ) . '</span>',
-			'href'  => $href,
-		];
+	private static function status_row( string $label, string $value, string $tone ): string {
+		return '<span class="forwp-seo-ab-row forwp-seo-ab-row--status">'
+			. '<span class="forwp-seo-ab-label">' . esc_html( $label ) . '</span>'
+			. '<span class="forwp-seo-ab-badge forwp-seo-ab-badge--' . esc_attr( $tone ) . '">' . esc_html( $value ) . '</span>'
+			. '</span>';
+	}
+
+	private static function action_row( string $label ): string {
+		return '<span class="forwp-seo-ab-row forwp-seo-ab-row--action">'
+			. '<span class="forwp-seo-ab-action-label">' . esc_html( $label ) . '</span>'
+			. '</span>';
 	}
 
 	private static function format_time( string $iso ): string {
@@ -294,26 +453,6 @@ final class AdminBar {
 
 		$formatted = wp_date( 'd.m.Y H:i', $ts );
 		return is_string( $formatted ) ? $formatted : $iso;
-	}
-
-	private static function dot( string $tone, string $label ): string {
-		return '<span class="forwp-seo-ab-dot forwp-seo-ab-dot--' . esc_attr( $tone ) . '" title="' . esc_attr( $label ) . '" aria-hidden="true"></span>';
-	}
-
-	private static function tone( $score, bool $no_focus ): string {
-		if ( $no_focus || null === $score || '' === $score ) {
-			return 'na';
-		}
-
-		$n = (int) $score;
-		if ( $n >= 71 ) {
-			return 'good';
-		}
-		if ( $n >= 41 ) {
-			return 'ok';
-		}
-
-		return 'bad';
 	}
 
 	private static function gsc_tone( string $coverage ): string {
@@ -336,10 +475,12 @@ final class AdminBar {
 	private static function seo_payload( int $post_id ): array {
 		$adapter = SeoMetaRegistry::get_active();
 		$scores  = $adapter->read_scores( $post_id );
+		$meta    = $adapter->read( $post_id );
 
 		return [
-			'seo'     => $scores['seo'],
-			'noFocus' => (bool) $scores['no_focus'],
+			'seo'     => $scores['seo'] ?? null,
+			'noFocus' => (bool) ( $scores['no_focus'] ?? false ),
+			'focus'   => (string) ( $meta['focus_keyword'] ?? '' ),
 		];
 	}
 

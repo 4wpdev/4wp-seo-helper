@@ -38,7 +38,7 @@ final class PageRenderer {
 						<label class="forwp-seo-gsc-range-bar__label" for="forwp-seo-gsc-range">
 							<?php esc_html_e( 'Date range', '4wp-seo-helper' ); ?>
 						</label>
-						<select id="forwp-seo-gsc-range" name="range" class="forwp-seo-gsc-range-bar__select">
+						<select id="forwp-seo-gsc-range" name="range" class="forwp-seo-gsc-range-bar__select forwp-seo-range-select">
 							<?php foreach ( ReportPeriod::allowed_ranges() as $value => $label ) : ?>
 								<option value="<?php echo esc_attr( (string) $value ); ?>" <?php selected( $days, $value ); ?>>
 									<?php echo esc_html( $label ); ?>

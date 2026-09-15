@@ -9,6 +9,7 @@ use Forwp\SeoHelper\Admin\Menu;
 use Forwp\SeoHelper\Gsc\Admin as GscAdmin;
 use Forwp\SeoHelper\Gsc\Insights;
 use Forwp\SeoHelper\Gsc\Module as GscModule;
+use Forwp\SeoHelper\Gsc\ReportPeriod;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -26,7 +27,7 @@ final class DashboardStats {
 		$inventory  = $repository->get_stats();
 		$growth     = self::published_growth( $repository );
 		$snapshot   = self::rotate_snapshot( $inventory );
-		$gsc        = self::search_change();
+		$gsc        = self::search_payload();
 		$prev       = is_array( $snapshot['prev'] ?? null ) ? $snapshot['prev'] : null;
 
 		return [
@@ -62,6 +63,9 @@ final class DashboardStats {
 				],
 				admin_url( 'admin.php' )
 			),
+			'inventory_url' => admin_url( 'admin.php?page=' . Menu::INVENTORY_PAGE_SLUG . '&view=inventory' ),
+			'gsc_url'       => admin_url( 'admin.php?page=' . Menu::GSC_PAGE_SLUG ),
+			'settings_url'  => admin_url( 'admin.php?page=' . Menu::SETTINGS_PAGE_SLUG ),
 		];
 	}
 
@@ -134,26 +138,61 @@ final class DashboardStats {
 	}
 
 	/**
+	 * GSC overview + list panes for the dashboard (null when module off).
+	 *
 	 * @return array<string, mixed>|null
 	 */
-	private static function search_change(): ?array {
+	private static function search_payload(): ?array {
 		if ( ! GscModule::get_instance()->is_enabled() ) {
-			return null;
+			return [
+				'enabled'     => false,
+				'connected'   => false,
+				'needs_sync'  => false,
+				'clicks'      => 0,
+				'impressions' => 0,
+				'position'    => 0.0,
+				'change'      => [],
+				'label'       => '',
+				'top_queries' => [],
+				'top_pages'   => [],
+			];
 		}
 
+		$admin    = GscAdmin::get_instance();
 		$property = GscAdmin::get_site_property();
-		if ( '' === $property ) {
-			return null;
+		$ready    = $admin->is_connected() && '' !== $property;
+
+		if ( ! $ready ) {
+			return [
+				'enabled'     => true,
+				'connected'   => false,
+				'needs_sync'  => true,
+				'clicks'      => 0,
+				'impressions' => 0,
+				'position'    => 0.0,
+				'change'      => [],
+				'label'       => '',
+				'top_queries' => [],
+				'top_pages'   => [],
+			];
 		}
 
-		$overview = ( new Insights() )->build_overview( $property );
+		$days     = ReportPeriod::resolve_from_request();
+		$insights = new Insights();
+		$overview = $insights->build_overview( $property, $days );
+		$cards    = $insights->build_cards( $property, $days );
 
 		return [
+			'enabled'     => true,
+			'connected'   => true,
+			'needs_sync'  => ! empty( $cards['needs_sync'] ),
 			'clicks'      => (int) ( $overview['current']['clicks'] ?? 0 ),
 			'impressions' => (int) ( $overview['current']['impressions'] ?? 0 ),
 			'position'    => (float) ( $overview['current']['position'] ?? 0 ),
-			'change'      => $overview['change'] ?? [],
-			'label'       => (string) ( $overview['period']['label'] ?? '' ),
+			'change'      => is_array( $overview['change'] ?? null ) ? $overview['change'] : [],
+			'label'       => (string) ( $overview['period']['label'] ?? ( $cards['period_label'] ?? '' ) ),
+			'top_queries' => array_slice( is_array( $cards['top_queries'] ?? null ) ? $cards['top_queries'] : [], 0, 8 ),
+			'top_pages'   => array_slice( is_array( $cards['top_pages'] ?? null ) ? $cards['top_pages'] : [], 0, 8 ),
 		];
 	}
 

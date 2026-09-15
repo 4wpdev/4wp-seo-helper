@@ -652,6 +652,10 @@
 		if ( ! row ) {
 			return;
 		}
+		var priority = row.getAttribute( 'data-priority-group' );
+		if ( null !== priority ) {
+			setGroupCollapsed( priority, false );
+		}
 		row.classList.add( 'is-highlight' );
 		row.scrollIntoView( { block: 'center', behavior: 'smooth' } );
 	}

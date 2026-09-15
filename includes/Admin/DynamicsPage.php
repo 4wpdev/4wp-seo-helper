@@ -27,15 +27,16 @@ final class DynamicsPage {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		?>
 		<div class="wrap forwp-seo-admin-shell forwp-seo-admin-shell--wide">
-			<h1 class="forwp-seo-admin-heading">
-				<span class="forwp-seo-admin-heading__icon" aria-hidden="true">
-					<?php echo wp_kses( $heading_svg, Page::svg_allowed_html() ); ?>
-				</span>
-				<span class="forwp-seo-admin-heading__text"><?php esc_html_e( 'Dynamics', '4wp-seo-helper' ); ?></span>
-			</h1>
-			<p class="forwp-seo-admin-lead">
-				<?php esc_html_e( 'Pages with recorded SEO changes over time — index requests, crawls, content, fields, and Search Console.', '4wp-seo-helper' ); ?>
-			</p>
+			<header class="forwp-seo-dash__header">
+				<div class="forwp-seo-dash__header-main">
+					<h1 class="forwp-seo-admin-heading">
+						<span class="forwp-seo-admin-heading__icon" aria-hidden="true">
+							<?php echo wp_kses( $heading_svg, Page::svg_allowed_html() ); ?>
+						</span>
+						<span class="forwp-seo-admin-heading__text"><?php esc_html_e( 'Dynamics', '4wp-seo-helper' ); ?></span>
+					</h1>
+				</div>
+			</header>
 			<?php
 			if ( $post_id > 0 ) {
 				self::render_detail( $post_id );
@@ -73,44 +74,43 @@ final class DynamicsPage {
 		$total    = $result['total'];
 		$pages    = max( 1, (int) ceil( $total / $per_page ) );
 		$waiting  = History::waiting_for_crawl( 8 );
+		$ids      = array_map( static fn( array $row ): int => (int) $row['post_id'], $items );
+		$typed    = [];
+		foreach ( array_unique( array_filter( array_column( $items, 'last_type' ) ) ) as $type ) {
+			$typed[ (string) $type ] = History::latest_typed( $ids, (string) $type, 2 );
+		}
 		?>
-		<?php if ( [] !== $waiting ) : ?>
-			<div class="forwp-seo-panel">
-				<h2><?php esc_html_e( 'Waiting for Googlebot', '4wp-seo-helper' ); ?></h2>
-				<ul class="forwp-seo-dash-list">
-					<?php foreach ( $waiting as $row ) : ?>
-						<li>
-							<a href="<?php echo esc_url( self::url_for_post( (int) $row['post_id'] ) ); ?>">
-								<?php echo esc_html( self::post_label( (int) $row['post_id'] ) ); ?>
-							</a>
-							<span class="forwp-seo-admin-muted"><?php echo esc_html( self::format_gmt( (string) $row['occurred_at'] ) ); ?></span>
-						</li>
-					<?php endforeach; ?>
-				</ul>
-			</div>
-		<?php endif; ?>
-
-		<form method="get" class="forwp-seo-dynamics-search">
-			<input type="hidden" name="page" value="<?php echo esc_attr( Menu::DYNAMICS_PAGE_SLUG ); ?>" />
-			<label class="screen-reader-text" for="forwp-seo-dynamics-search"><?php esc_html_e( 'Search pages', '4wp-seo-helper' ); ?></label>
-			<input type="search" id="forwp-seo-dynamics-search" name="s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Search by title…', '4wp-seo-helper' ); ?>" />
-			<button type="submit" class="button"><?php esc_html_e( 'Search', '4wp-seo-helper' ); ?></button>
-			<?php if ( '' !== $search ) : ?>
-				<a class="button button-link" href="<?php echo esc_url( self::list_url() ); ?>"><?php esc_html_e( 'Clear', '4wp-seo-helper' ); ?></a>
-			<?php endif; ?>
-		</form>
-
-		<p class="forwp-seo-admin-muted">
-			<?php
-			echo esc_html(
-				sprintf(
-					/* translators: %s: number of pages */
-					_n( '%s page with recorded changes', '%s pages with recorded changes', $total, '4wp-seo-helper' ),
-					number_format_i18n( $total )
-				)
-			);
-			?>
+		<p class="forwp-seo-admin-muted forwp-seo-dynamics-lead">
+			<?php esc_html_e( 'URLs with a recorded SEO or Search Console change, newest first. Open a row for the timeline.', '4wp-seo-helper' ); ?>
 		</p>
+		<div class="forwp-seo-dynamics-toolbar">
+			<form method="get" class="forwp-seo-dynamics-search">
+				<input type="hidden" name="page" value="<?php echo esc_attr( Menu::DYNAMICS_PAGE_SLUG ); ?>" />
+				<label class="screen-reader-text" for="forwp-seo-dynamics-search"><?php esc_html_e( 'Search pages', '4wp-seo-helper' ); ?></label>
+				<input type="search" id="forwp-seo-dynamics-search" name="s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Search by title…', '4wp-seo-helper' ); ?>" />
+				<button type="submit" class="button"><?php esc_html_e( 'Search', '4wp-seo-helper' ); ?></button>
+				<?php if ( '' !== $search ) : ?>
+					<a class="button button-link" href="<?php echo esc_url( self::list_url() ); ?>"><?php esc_html_e( 'Clear', '4wp-seo-helper' ); ?></a>
+				<?php endif; ?>
+			</form>
+		</div>
+
+		<?php if ( [] !== $waiting ) : ?>
+			<p class="forwp-seo-admin-muted forwp-seo-dynamics-waiting">
+				<?php esc_html_e( 'Waiting for crawl:', '4wp-seo-helper' ); ?>
+				<?php
+				$wait_links = [];
+				foreach ( $waiting as $row ) {
+					$wait_links[] = sprintf(
+						'<a href="%1$s">%2$s</a>',
+						esc_url( self::url_for_post( (int) $row['post_id'] ) ),
+						esc_html( self::post_label( (int) $row['post_id'] ) )
+					);
+				}
+				echo wp_kses_post( implode( ', ', $wait_links ) );
+				?>
+			</p>
+		<?php endif; ?>
 
 		<?php if ( [] === $items ) : ?>
 			<div class="forwp-seo-panel">
@@ -119,24 +119,26 @@ final class DynamicsPage {
 				</p>
 			</div>
 		<?php else : ?>
+			<div class="forwp-seo-admin-app">
 			<table class="widefat striped forwp-seo-dynamics-table">
 				<thead>
 					<tr>
 						<th><?php esc_html_e( 'Page', '4wp-seo-helper' ); ?></th>
-						<th><?php esc_html_e( 'Type', '4wp-seo-helper' ); ?></th>
-						<th><?php esc_html_e( 'Last change', '4wp-seo-helper' ); ?></th>
-						<th><?php esc_html_e( 'Latest', '4wp-seo-helper' ); ?></th>
-						<th><?php esc_html_e( 'Events', '4wp-seo-helper' ); ?></th>
+						<th><?php esc_html_e( 'What changed', '4wp-seo-helper' ); ?></th>
+						<th><?php esc_html_e( 'When', '4wp-seo-helper' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
 					<?php foreach ( $items as $row ) : ?>
 						<?php
-						$post_id   = (int) $row['post_id'];
-						$post_type = get_post_type_object( (string) get_post_type( $post_id ) );
-						$type_label = $post_type instanceof \WP_Post_Type ? $post_type->labels->singular_name : (string) get_post_type( $post_id );
+						$post_id    = (int) $row['post_id'];
 						$permalink  = get_permalink( $post_id );
 						$edit       = get_edit_post_link( $post_id, 'raw' );
+						$last_type  = (string) $row['last_type'];
+						$snaps      = $typed[ $last_type ][ $post_id ] ?? [];
+						$current    = isset( $snaps[0]['snapshot'] ) && is_array( $snaps[0]['snapshot'] ) ? $snaps[0]['snapshot'] : (array) ( $row['last_snapshot'] ?? [] );
+						$previous   = isset( $snaps[1]['snapshot'] ) && is_array( $snaps[1]['snapshot'] ) ? $snaps[1]['snapshot'] : null;
+						$change     = self::change_summary( $last_type, $current, $previous );
 						?>
 						<tr>
 							<td>
@@ -157,38 +159,52 @@ final class DynamicsPage {
 									</span>
 								</div>
 							</td>
-							<td><?php echo esc_html( $type_label ); ?></td>
-							<td><?php echo esc_html( self::format_gmt( (string) $row['last_at'] ) ); ?></td>
-							<td><?php echo esc_html( self::event_label( (string) $row['last_type'] ) ); ?></td>
-							<td><?php echo esc_html( number_format_i18n( (int) $row['event_count'] ) ); ?></td>
+							<td>
+								<span class="forwp-seo-badge"><?php echo esc_html( self::event_label( $last_type ) ); ?></span>
+								<span class="forwp-seo-dynamics-change"><?php echo esc_html( $change ); ?></span>
+							</td>
+							<td><?php echo esc_html( self::format_relative( (string) $row['last_at'] ) ); ?></td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+			</div>
 			<?php
+			echo '<div class="tablenav bottom forwp-seo-dynamics-pager"><div class="tablenav-pages">';
+			echo '<span class="displaying-num">' . esc_html(
+				sprintf(
+					/* translators: %s: number of pages */
+					_n( '%s page', '%s pages', $total, '4wp-seo-helper' ),
+					number_format_i18n( $total )
+				)
+			) . '</span>';
 			if ( $pages > 1 ) {
 				$base = add_query_arg(
-					[
-						'page' => Menu::DYNAMICS_PAGE_SLUG,
-						's'    => $search,
-					],
+					array_filter(
+						[
+							'page' => Menu::DYNAMICS_PAGE_SLUG,
+							's'    => $search,
+						]
+					),
 					admin_url( 'admin.php' )
 				);
-				echo '<div class="tablenav"><div class="tablenav-pages">';
+				echo '<span class="pagination-links">';
 				echo wp_kses_post(
-					paginate_links(
+					(string) paginate_links(
 						[
 							'base'      => add_query_arg( 'paged', '%#%', $base ),
 							'format'    => '',
 							'total'     => $pages,
 							'current'   => min( $paged, $pages ),
+							'mid_size'  => 2,
 							'prev_text' => '&laquo;',
 							'next_text' => '&raquo;',
 						]
 					)
 				);
-				echo '</div></div>';
+				echo '</span>';
 			}
+			echo '</div></div>';
 			?>
 		<?php endif; ?>
 		<?php
@@ -435,6 +451,88 @@ final class DynamicsPage {
 		return '';
 	}
 
+	/**
+	 * @param array<string, mixed>      $current  Latest snapshot.
+	 * @param array<string, mixed>|null $previous Previous snapshot of the same type.
+	 */
+	private static function change_summary( string $type, array $current, ?array $previous ): string {
+		if ( History::TYPE_GSC === $type ) {
+			$clicks = (int) ( $current['clicks'] ?? 0 );
+			$impr   = (int) ( $current['impr'] ?? 0 );
+			if ( is_array( $previous ) ) {
+				$dc = $clicks - (int) ( $previous['clicks'] ?? 0 );
+				$di = $impr - (int) ( $previous['impr'] ?? 0 );
+				$parts = [];
+				if ( 0 !== $dc ) {
+					$parts[] = sprintf( '%+d clicks', $dc );
+				}
+				if ( 0 !== $di ) {
+					$parts[] = sprintf( '%+d impr', $di );
+				}
+				if ( [] !== $parts ) {
+					return implode( ' · ', $parts );
+				}
+			}
+
+			return sprintf(
+				/* translators: 1: clicks, 2: impressions */
+				__( '%1$s clicks · %2$s impr', '4wp-seo-helper' ),
+				number_format_i18n( $clicks ),
+				number_format_i18n( $impr )
+			);
+		}
+
+		if ( History::TYPE_CONTENT === $type ) {
+			$chars = (int) ( $current['chars'] ?? 0 );
+			if ( is_array( $previous ) && (int) ( $previous['chars'] ?? 0 ) !== $chars ) {
+				return sprintf(
+					/* translators: 1: previous character count, 2: new character count */
+					__( '%1$s → %2$s characters', '4wp-seo-helper' ),
+					number_format_i18n( (int) $previous['chars'] ),
+					number_format_i18n( $chars )
+				);
+			}
+
+			return sprintf(
+				/* translators: %s: character count */
+				__( '%s characters', '4wp-seo-helper' ),
+				number_format_i18n( $chars )
+			);
+		}
+
+		if ( History::TYPE_SEO === $type ) {
+			$score = (int) ( $current['score'] ?? 0 );
+			if ( is_array( $previous ) && (int) ( $previous['score'] ?? 0 ) !== $score ) {
+				return sprintf(
+					/* translators: 1: previous score, 2: new score */
+					__( 'Score %1$d → %2$d', '4wp-seo-helper' ),
+					(int) $previous['score'],
+					$score
+				);
+			}
+
+			return sprintf(
+				/* translators: %d: SEO score */
+				__( 'Score %d', '4wp-seo-helper' ),
+				$score
+			);
+		}
+
+		if ( History::TYPE_CRAWL === $type ) {
+			return __( 'Google crawled this URL', '4wp-seo-helper' );
+		}
+
+		if ( History::TYPE_INDEX_REQUEST === $type ) {
+			return __( 'Indexing requested', '4wp-seo-helper' );
+		}
+
+		if ( History::TYPE_INSPECT === $type ) {
+			return __( 'URL inspected in Search Console', '4wp-seo-helper' );
+		}
+
+		return self::event_label( $type );
+	}
+
 	private static function event_label( string $type ): string {
 		$labels = [
 			History::TYPE_INDEX_REQUEST => __( 'Index request', '4wp-seo-helper' ),
@@ -452,6 +550,24 @@ final class DynamicsPage {
 		$title = get_the_title( $post_id );
 
 		return '' !== $title ? $title : '#' . $post_id;
+	}
+
+	private static function format_relative( string $gmt ): string {
+		$absolute = self::format_gmt( $gmt );
+		if ( '—' === $absolute ) {
+			return $absolute;
+		}
+
+		$ts = strtotime( $gmt . ' UTC' );
+		if ( false === $ts ) {
+			return $absolute;
+		}
+
+		return sprintf(
+			/* translators: %s: human-readable time difference */
+			__( '%s ago', '4wp-seo-helper' ),
+			human_time_diff( $ts )
+		);
 	}
 
 	private static function format_gmt( string $gmt ): string {

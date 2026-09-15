@@ -31,6 +31,11 @@ if ( class_exists( '\Forwp\SeoHelper\Core\Extension' ) ) {
 	\Forwp\SeoHelper\Core\Extension::get_instance();
 }
 
+$forwp_seo_ai_loader = FORWP_SEO_HELPER_PATH . 'ai/load.php';
+if ( is_readable( $forwp_seo_ai_loader ) ) {
+	require_once $forwp_seo_ai_loader;
+}
+
 register_activation_hook(
 	__FILE__,
 	function () {
