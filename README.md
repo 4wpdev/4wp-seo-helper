@@ -10,6 +10,10 @@ A plugin by **[4WP](https://4wp.dev/)** · Directory listing: [`readme.txt`](rea
 
 Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 
+## Version 2.3.0
+
+- **Trends** submenu: Google Trends JSON, related-queries CSV, or time-series CSV (daily → monthly averages). Key = query + region. Snapshots by date, Δ. Inventory **Trends** column uses the latest snapshot.
+
 ## Version 2.2.0
 
 - Configurable **Dashboard** (Screen Options layout, drag/hide widgets) with 7 / 28 / 90 day Search Console ranges
@@ -19,6 +23,7 @@ Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 
 ## Features
 
+- **Trends** — Google Trends JSON, related-queries CSV, or time-series CSV (query + region snapshots)
 - **SEO Inventory** — filters, missing fields, CSV export, two-column Quick Edit
 - **Priority queue** — P1 / P2 / P3 lanes (business priority, not SEO score)
 - **Yoast SEO** and **All in One SEO** adapters
@@ -48,6 +53,7 @@ The plugin does not ship API keys or talk to a model until the site administrato
 | SEO Inventory | `forwp-seo-inventory` |
 | Dynamics | `forwp-seo-dynamics` |
 | GSC | `forwp-seo-gsc` |
+| Trends | `forwp-seo-trends` |
 | AI Assistant | `forwp-seo-ai` |
 | Settings | `forwp-seo-settings` |
 

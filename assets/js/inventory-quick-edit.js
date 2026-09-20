@@ -26,6 +26,21 @@
 		return escHtml( value.slice( 0, max ) ) + '…';
 	}
 
+	function keyphrasesCell( text ) {
+		var value = text == null ? '' : String( text );
+		var phrases = value.split( /\r\n|\r|\n| · / ).map( function ( phrase ) {
+			return phrase.trim();
+		} ).filter( Boolean );
+
+		if ( ! phrases.length ) {
+			return excerpt( '', 80 );
+		}
+
+		return '<span class="forwp-seo-keyphrases">' + phrases.map( function ( phrase ) {
+			return '<span class="forwp-seo-keyphrases__item">' + escHtml( phrase ) + '</span>';
+		} ).join( '' ) + '</span>';
+	}
+
 	function scoreClass( score ) {
 		if ( score >= 71 ) {
 			return 'good';
@@ -363,9 +378,8 @@
 			metaDesc.innerHTML = excerpt( item.meta_description, 80 );
 		}
 		if ( focusKw ) {
-			focusKw.innerHTML = excerpt(
-				item.focus_keyphrases_text || item.focus_keyword || '',
-				80
+			focusKw.innerHTML = keyphrasesCell(
+				item.focus_keyphrases_text || item.focus_keyword || ''
 			);
 		}
 		if ( ogImage ) {

@@ -9,6 +9,7 @@ use Forwp\SeoHelper\Gsc\Indexing;
 use Forwp\SeoHelper\Multilingual\Registry as MultilingualRegistry;
 use Forwp\SeoHelper\SeoMeta\FocusKeyphrases;
 use Forwp\SeoHelper\SeoMeta\Registry as SeoMetaRegistry;
+use Forwp\SeoHelper\SeoMeta\YoastAdapter;
 use WP_Post;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -30,6 +31,8 @@ final class Repository {
 		$page      = max( 1, (int) ( $args['page'] ?? 1 ) );
 		$per_page  = min( 999, max( 1, (int) ( $args['per_page'] ?? 50 ) ) );
 		$post_type = sanitize_key( (string) ( $args['post_type'] ?? '' ) );
+		$taxonomy  = sanitize_key( (string) ( $args['taxonomy'] ?? '' ) );
+		$term_id   = absint( $args['term'] ?? 0 );
 		$lang      = sanitize_key( (string) ( $args['lang'] ?? '' ) );
 		$status    = sanitize_key( (string) ( $args['status'] ?? 'publish' ) );
 		$missing   = sanitize_key( (string) ( $args['missing'] ?? '' ) );
@@ -61,7 +64,7 @@ final class Repository {
 			'ignore_sticky_posts'    => true,
 			'no_found_rows'          => $has_post_filters,
 			'update_post_meta_cache' => false,
-			'update_post_term_cache' => false,
+			'update_post_term_cache' => true,
 		];
 
 		if ( $post_id > 0 ) {
@@ -73,6 +76,7 @@ final class Repository {
 		}
 
 		$this->prepare_language_query( $query_args, $lang );
+		$this->prepare_taxonomy_query( $query_args, $taxonomy, $term_id, $post_type );
 
 		$query   = $this->run_query( $query_args, $lang );
 		$records = [];
@@ -405,6 +409,18 @@ final class Repository {
 
 		$completeness = $this->scorer->score( $meta );
 		$seo_scores   = $adapter->read_scores( $post->ID );
+
+		$seo_title          = (string) ( $meta['title'] ?? '' );
+		$seo_description    = (string) ( $meta['description'] ?? '' );
+		$seo_title_is_auto  = false;
+		$seo_desc_is_auto   = false;
+		if ( $adapter instanceof YoastAdapter ) {
+			$presented         = $adapter->present( $post, $meta );
+			$seo_title         = (string) $presented['title'];
+			$seo_description   = (string) $presented['description'];
+			$seo_title_is_auto = ! empty( $presented['title_is_auto'] ) && '' !== $seo_title;
+			$seo_desc_is_auto  = ! empty( $presented['description_is_auto'] ) && '' !== $seo_description;
+		}
 		$group        = $provider->get_translation_group( $post->ID );
 		$group_ids    = array_map(
 			static function ( array $item ): int {
@@ -423,8 +439,12 @@ final class Repository {
 			'wp_title'           => get_the_title( $post ),
 			'url'                => get_permalink( $post ) ?: '',
 			'modified_gmt'       => $post->post_modified_gmt,
-			'seo_title'          => $meta['title'],
-			'meta_description'   => $meta['description'],
+			'seo_title'             => $seo_title,
+			'seo_title_raw'         => (string) ( $meta['title'] ?? '' ),
+			'seo_title_is_auto'     => $seo_title_is_auto,
+			'meta_description'      => $seo_description,
+			'meta_description_raw'  => (string) ( $meta['description'] ?? '' ),
+			'meta_description_is_auto' => $seo_desc_is_auto,
 			'focus_keyword'      => $meta['focus_keyword'],
 			'focus_keyphrases'   => $phrases,
 			'focus_keyphrases_text' => FocusKeyphrases::format( $phrases ),
@@ -444,7 +464,9 @@ final class Repository {
 			'multilingual'       => $provider->get_id(),
 			'priority'           => $slot['priority'] ?? null,
 			'queue_position'     => isset( $slot['queue_position'] ) ? (int) $slot['queue_position'] : null,
+			'taxonomies'         => TaxonomyDiscovery::get_post_groups( $post->ID, $post->post_type ),
 		];
+		$record['taxonomies_text'] = TaxonomyDiscovery::format_plain( $record['taxonomies'] );
 
 		return array_merge( $record, Indexing::inventory_fields( $post->ID ) );
 	}
@@ -460,6 +482,42 @@ final class Repository {
 		}
 
 		return $supported;
+	}
+
+	/**
+	 * @param array<string, mixed> $query_args
+	 */
+	private function prepare_taxonomy_query( array &$query_args, string $taxonomy, int $term_id, string $post_type ): void {
+		if ( '' === $taxonomy ) {
+			return;
+		}
+
+		$allowed = [];
+		foreach ( TaxonomyDiscovery::get_labeled( '' === $post_type ? [] : [ $post_type ] ) as $row ) {
+			$allowed[ $row['slug'] ] = true;
+		}
+
+		if ( ! isset( $allowed[ $taxonomy ] ) ) {
+			return;
+		}
+
+		$clause = [
+			'taxonomy' => $taxonomy,
+			'field'    => 'term_id',
+		];
+
+		if ( $term_id > 0 ) {
+			$term = get_term( $term_id, $taxonomy );
+			if ( ! $term instanceof \WP_Term ) {
+				return;
+			}
+			$clause['terms']            = [ $term_id ];
+			$clause['include_children'] = true;
+		} else {
+			$clause['operator'] = 'EXISTS';
+		}
+
+		$query_args['tax_query'] = [ $clause ];
 	}
 
 	/**

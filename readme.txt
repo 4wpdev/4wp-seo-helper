@@ -4,7 +4,7 @@ Tags: seo, inventory, yoast, search console, google
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.2.0
+Stable tag: 2.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,6 +18,10 @@ Version **2.0** adds a full **Google Search Console** workspace inside wp-admin:
 
 Version **2.2** adds an **AI Assistant** that generates SEO titles, meta descriptions, and focus keyphrases through the standard **WordPress AI Client** (Settings → Connectors). There is no custom vendor SDK. Nothing is generated until an administrator configures a connector.
 
+Version **2.3** adds **Trends**: import Google Trends JSON or CSV and match interest to inventory focus keyphrases.
+
+Version **2.4** adds **Positions**: track Google SERP rank for queries (via Serper) against your Search Console property, store dated snapshots, and collect People also ask / related searches.
+
 Built for teams that use **Yoast SEO** or **All in One SEO** and need one place to audit SEO fields across posts, pages, and public custom post types.
 
 A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Helper on 4wp.dev](https://4wp.dev/plugin/4wp-seo-helper/).
@@ -29,6 +33,8 @@ A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Help
 * **Bulk workflows** — quick edit SEO fields from the inventory table
 * **AI copy** — generate title, description, and focus keyphrases via WordPress Connectors
 * **Search Console ops** — overview, insights, performance breakdowns, URL inspection, and background data sync
+* **Rank tracking** — Positions: query + country checks, SERP snapshots, People also ask / related searches
+* **Trends** — import Google Trends snapshots and see interest next to matching keyphrases
 * **Indexing workflows** — refresh index status and request indexing from the inventory table or admin bar
 * **External sync** — REST API for Google Sheets or custom dashboards
 * **Multilingual sites** — Polylang, WPML, or single-language
@@ -59,6 +65,14 @@ Priority reflects **business importance** (e.g. main service pages), not SEO sco
 
 If the connected Google account does **not** have access to this site's Search Console property, sync and GSC tools stay blocked until access is granted. The settings screen links to Search Console user management for the current site.
 
+**Positions**
+
+1. Connect Search Console and select the property you want to find in the SERP (this is the “looking for” domain).
+2. Open **Settings → Position providers**, add a **Serper** API key, and set default country / language.
+3. Open **4WP SEO → Positions**, add a query (country and language can override the defaults).
+4. Click **Update** to fetch organic results (Top 10 / 20 / 30; extra pages only if your site is missing). Each check stores a dated JSON snapshot.
+5. Hover the SERP icon for titles; hover **Ask / Suggest** for People also ask and related searches collected from that query. The **Related** tab lists unique phrases with source query IDs.
+
 = Google Search Console features =
 
 * **OAuth connection** — per-site Client ID/Secret, connect/disconnect Google account (tokens only; credentials stay saved)
@@ -81,9 +95,18 @@ If the connected Google account does **not** have access to this site's Search C
 * Nothing is written to the post until you review, Apply, and Update
 * If no connector is available, the Generate panel is not shown
 
+= Positions =
+
+* **4WP SEO → Positions** tracks queries per country against the Search Console property
+* Provider: **Serper** (API key under Settings → Position providers); default `gl` / `hl` with per-query override
+* Unique key is query + country; **Update** stores a dated organic snapshot (JSON)
+* Depth Top 10 / 20 / 30 — extra Serper pages only if the site is not found yet
+* Hover preview of organic titles; **Ask / Suggest** tooltip for People also ask and related searches
+* Related tab keeps unique phrases and an array of source query IDs when the same idea appears on several checks
+
 = Modules =
 
-**Available in wp-admin:** SEO Inventory, Inventory REST API, Google Search Console, AI Assistant (when a WordPress AI connector is configured).
+**Available in wp-admin:** SEO Inventory, Inventory REST API, Google Search Console, Trends, Positions, AI Assistant (when a WordPress AI connector is configured).
 
 **Coming soon:** TechArticle schema, LLMS.txt, and cross posting (visible as badges in Settings until a future release).
 
@@ -103,7 +126,14 @@ On activation, the inventory API token is created and the inventory module is en
 3. Add the redirect URI from **4WP SEO → Settings → Search Console** to Authorized redirect URIs.
 4. Complete OAuth consent / branding in Google Cloud (Testing mode is fine for private sites; add test users).
 5. Verify the site exists in [Google Search Console](https://search.google.com/search-console) for the Google account you connect.
-6. Connect in WordPress and run an initial sync under **GSC → Data sync**.
+6. Connect in WordPress and run an initial sync under **G Webmaster Con. → Data sync**.
+
+**Optional — Positions (Serper)**
+
+1. Create an API key at [serper.dev](https://serper.dev/).
+2. Save it under **4WP SEO → Settings → Position providers**.
+3. Select a Search Console property so Positions knows which domain to look for.
+4. Add queries on **4WP SEO → Positions** and run **Update**.
 
 == Frequently Asked Questions ==
 
@@ -170,7 +200,11 @@ Lets you pick any property from the connected Google account manually—useful w
 
 = Does sync run in the background? =
 
-Yes. **Sync now** queues a WP-Cron job so you can leave the page. Optional **daily automatic sync** can be enabled under **GSC → Data sync**.
+Yes. **Sync now** queues a WP-Cron job so you can leave the page. Optional **daily automatic sync** can be enabled under **G Webmaster Con. → Data sync**.
+
+= How do Positions work? =
+
+Save a Serper key under **Settings → Position providers**. The Search Console property is the domain Positions looks for in organic results. Each **Update** on **4WP SEO → Positions** stores a dated snapshot. People also ask and related searches are saved (unique phrases, with every source query ID). No Serper calls run until an administrator saves a key and clicks Update.
 
 = What modules are coming soon? =
 
@@ -198,6 +232,13 @@ Used to list verified properties, inspect URLs, and fetch Search Analytics for t
 
 No Google API calls are made until an administrator configures OAuth credentials and connects an account. The plugin does not send site visitor or front-end user data to Google.
 
+**Serper Search API** (`google.serper.dev`)
+
+Used only when an administrator saves a Serper API key under **Settings → Position providers** and runs **Update** on **4WP SEO → Positions**. The plugin sends the search query, country (`gl`), language (`hl`), optional date-range (`tbs`), and page number. Organic titles/URLs, People also ask, and related searches from the response are stored in WordPress for rank snapshots. The plugin does not send visitor or front-end user data to Serper.
+
+* [Serper](https://serper.dev/)
+* [Serper privacy policy](https://serper.dev/privacy)
+
 **WordPress AI Client / Connectors** (optional)
 
 When an administrator configures a connector under **Settings → Connectors** and runs **Generate with AI** in SEO Inventory, this plugin sends a prompt (page title plus either stripped page content or the page URL) through `wp_ai_client_prompt()`. The WordPress AI Client routes that prompt to the connector the administrator selected. This plugin does not call model vendors directly; which remote service receives the prompt depends on that connector.
@@ -215,6 +256,15 @@ When an administrator configures a connector under **Settings → Connectors** a
 5. GSC data sync, inventory Search Console metrics, and indexing actions
 
 == Changelog ==
+
+= 2.4.0 =
+* **Positions:** 4WP SEO → Positions. Track SERP rank per query + country via Serper; Search Console property is the domain we look for.
+* Dated organic snapshots (JSON); Update icon; depth Top 10 / 20 / 30 (extra pages only if the site is missing).
+* Hover SERP titles; Ask / Suggest tooltip for People also ask and related searches. Related tab stores unique phrases with source query IDs.
+* Settings → Position providers: Serper key, searchable country/language defaults.
+
+= 2.3.0 =
+* **Trends:** 4WP SEO → Trends. Upload Google Trends JSON, related-queries CSV, or time-series CSV (daily values stored as monthly averages). Key is query + region; new file adds a date snapshot (nothing overwritten). Language is a filter. Inventory column Trends shows latest interest and Δ for a matching focus keyphrase.
 
 = 2.2.0 =
 * AI Assistant: generate SEO title, meta description, and focus keyphrases via the standard WordPress AI Client (Settings → Connectors).
@@ -255,6 +305,12 @@ When an administrator configures a connector under **Settings → Connectors** a
 * Future modules (TechArticle, LLMS.txt, cross posting) visible as Coming soon in admin.
 
 == Upgrade Notice ==
+
+= 2.4.0 =
+New Positions screen: Serper rank checks against your Search Console property, dated SERP snapshots, and People also ask / related searches.
+
+= 2.3.0 =
+New Trends screen: import Google Trends JSON (query + region snapshots). Inventory shows latest interest and Δ next to matching focus keyphrases.
 
 = 2.2.0 =
 AI Assistant via WordPress Connectors, configurable dashboard with GSC date ranges, and a Dynamics list that shows what changed.

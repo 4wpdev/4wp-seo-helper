@@ -14,6 +14,8 @@ use Forwp\SeoHelper\Gsc\ReportPeriod;
 use Forwp\SeoHelper\Inventory\PriorityLabels;
 use Forwp\SeoHelper\Inventory\Repository;
 use Forwp\SeoHelper\SeoMeta\Registry as SeoMetaRegistry;
+use Forwp\SeoHelper\Trends\Parser as TrendsParser;
+use Forwp\SeoHelper\Trends\Repository as TrendsRepository;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -40,6 +42,9 @@ final class InventoryListTable extends \WP_List_Table {
 	private bool $show_gsc_metrics = false;
 
 	private bool $show_gsc_indexing = false;
+
+	/** @var array<string, array{interest: float, delta: float, snapshot: string, region: string}>|null */
+	private ?array $trends_by_query = null;
 
 	public function __construct( Repository $repository ) {
 		$this->repository = $repository;
@@ -138,9 +143,11 @@ final class InventoryListTable extends \WP_List_Table {
 			'post_id'          => __( 'ID', '4wp-seo-helper' ),
 			'wp_title'         => __( 'Title', '4wp-seo-helper' ),
 			'post_type'        => __( 'Type', '4wp-seo-helper' ),
+			'taxonomies'       => __( 'Taxonomies', '4wp-seo-helper' ),
 			'seo_title'        => __( 'SEO title', '4wp-seo-helper' ),
 			'meta_description' => __( 'Meta description', '4wp-seo-helper' ),
 			'focus_keyword'    => __( 'Focus keyphrases', '4wp-seo-helper' ),
+			'trends'           => '<span title="' . esc_attr__( 'Not site traffic. Numbers come from an imported Google Trends file. A cell is filled only when a focus keyphrase exactly matches a query in that file.', '4wp-seo-helper' ) . '">' . esc_html__( 'Trends', '4wp-seo-helper' ) . '</span>',
 			'og_image'         => __( 'OG image', '4wp-seo-helper' ),
 			'completeness'     => $this->get_score_column_label(),
 			'missing'          => __( 'Missing', '4wp-seo-helper' ),
@@ -148,7 +155,7 @@ final class InventoryListTable extends \WP_List_Table {
 
 		if ( $this->show_gsc_indexing ) {
 			$index_cols = [
-				'gsc_index_status'    => __( 'Index status', '4wp-seo-helper' ),
+				'gsc_index_status'    => '<span title="' . esc_attr__( 'Index status', '4wp-seo-helper' ) . '">' . esc_html__( 'Index', '4wp-seo-helper' ) . '</span>',
 				'gsc_index_requested' => __( 'Index requested', '4wp-seo-helper' ),
 				'gsc_last_crawl'      => __( 'Last crawl', '4wp-seo-helper' ),
 				'gsc_actions'         => __( 'Index actions', '4wp-seo-helper' ),
@@ -210,6 +217,8 @@ final class InventoryListTable extends \WP_List_Table {
 				'page'             => $page,
 				'per_page'         => $per_page,
 				'post_type'        => (string) ( $this->filters['post_type'] ?? '' ),
+				'taxonomy'         => (string) ( $this->filters['taxonomy'] ?? '' ),
+				'term'             => ! empty( $this->filters['term'] ) ? (int) $this->filters['term'] : 0,
 				'lang'             => (string) ( $this->filters['lang'] ?? '' ),
 				'status'           => (string) ( $this->filters['status'] ?? 'publish' ),
 				'missing'          => (string) ( $this->filters['missing'] ?? '' ),
@@ -569,7 +578,11 @@ final class InventoryListTable extends \WP_List_Table {
 			[
 				'post_id'               => (int) $item['post_id'],
 				'seo_title'             => (string) ( $item['seo_title'] ?? '' ),
+				'seo_title_raw'         => (string) ( $item['seo_title_raw'] ?? '' ),
+				'seo_title_is_auto'     => ! empty( $item['seo_title_is_auto'] ),
 				'meta_description'      => (string) ( $item['meta_description'] ?? '' ),
+				'meta_description_raw'  => (string) ( $item['meta_description_raw'] ?? '' ),
+				'meta_description_is_auto' => ! empty( $item['meta_description_is_auto'] ),
 				'focus_keyword'         => (string) ( $item['focus_keyword'] ?? '' ),
 				'focus_keyphrases_text' => (string) ( $item['focus_keyphrases_text'] ?? '' ),
 				'og_image'              => (string) ( $item['og_image'] ?? '' ),
@@ -630,6 +643,9 @@ final class InventoryListTable extends \WP_List_Table {
 			case 'post_type':
 				return $this->render_post_type_cell( (string) ( $item['post_type'] ?? '' ) );
 
+			case 'taxonomies':
+				return $this->render_taxonomies_cell( $item );
+
 			case 'gsc':
 				return $this->render_gsc_cell( $item );
 
@@ -655,18 +671,97 @@ final class InventoryListTable extends \WP_List_Table {
 				return '';
 
 			case 'seo_title':
-				return $this->render_text_excerpt_cell( (string) ( $item['seo_title'] ?? '' ) );
+				return $this->render_text_excerpt_cell(
+					(string) ( $item['seo_title'] ?? '' ),
+					false,
+					! empty( $item['seo_title_is_auto'] )
+				);
 
 			case 'meta_description':
-				return $this->render_text_excerpt_cell( (string) ( $item['meta_description'] ?? '' ) );
+				return $this->render_text_excerpt_cell(
+					(string) ( $item['meta_description'] ?? '' ),
+					false,
+					! empty( $item['meta_description_is_auto'] )
+				);
 
 			case 'focus_keyword':
-				$value = (string) ( $item['focus_keyphrases_text'] ?? $item['focus_keyword'] ?? '' );
-				return $this->render_text_excerpt_cell( $value, true );
+				return $this->render_focus_keyphrases_cell(
+					(string) ( $item['focus_keyphrases_text'] ?? $item['focus_keyword'] ?? '' )
+				);
+
+			case 'trends':
+				return $this->render_trends_cell( $item );
 
 			default:
 				return esc_html( (string) ( $item[ $column_name ] ?? '' ) );
 		}
+	}
+
+	/**
+	 * @param array<string, mixed> $item
+	 */
+	private function render_trends_cell( array $item ): string {
+		if ( null === $this->trends_by_query ) {
+			$this->trends_by_query = TrendsRepository::latest_by_query();
+		}
+
+		if ( empty( $this->trends_by_query ) ) {
+			return '—';
+		}
+
+		$phrases = preg_split( '/\r\n|\r|\n/', (string) ( $item['focus_keyphrases_text'] ?? $item['focus_keyword'] ?? '' ) );
+		$phrases = is_array( $phrases ) ? $phrases : [];
+		$hit     = null;
+
+		foreach ( $phrases as $phrase ) {
+			$key = TrendsParser::normalize_query( (string) $phrase );
+			if ( '' !== $key && isset( $this->trends_by_query[ $key ] ) ) {
+				$hit = $this->trends_by_query[ $key ];
+				break;
+			}
+		}
+
+		if ( ! is_array( $hit ) ) {
+			return '—';
+		}
+
+		$interest = (float) ( $hit['interest'] ?? 0 );
+		$interest_label = fmod( $interest, 1.0 ) === 0.0
+			? (string) (int) $interest
+			: (string) $interest;
+
+		$delta       = (float) ( $hit['delta'] ?? 0 );
+		$delta_label = (string) ( $hit['delta_label'] ?? '' );
+		if ( '' === $delta_label ) {
+			$arrow       = $delta > 0 ? '↑' : ( $delta < 0 ? '↓' : '→' );
+			$delta_label = $arrow . ' ' . ( 0.0 === $delta ? '0' : (string) $delta );
+		}
+
+		$delta_class = $delta > 0 ? 'is-up' : ( $delta < 0 ? 'is-down' : 'is-flat' );
+		if ( false !== stripos( $delta_label, 'breakout' ) ) {
+			$delta_class = 'is-up';
+		}
+
+		$title = sprintf(
+			/* translators: 1: query, 2: region, 3: YYYY-MM, 4: interest, 5: delta */
+			__( 'Matched focus keyphrase “%1$s” to imported Trends query (%2$s, %3$s). %4$s/100 = relative interest in that file (100 = strongest query there, not search volume). %5$s = change (CSV increase %% until a second month exists).', '4wp-seo-helper' ),
+			(string) ( $hit['query'] ?? '' ),
+			(string) ( $hit['region'] ?? '' ),
+			(string) ( $hit['snapshot'] ?? '' ),
+			$interest_label,
+			$delta_label
+		);
+
+		$query = (string) ( $hit['query'] ?? '' );
+
+		return sprintf(
+			'<span class="forwp-seo-trends" title="%1$s"><span class="forwp-seo-trends__query">%2$s</span><span class="forwp-seo-trends__interest">%3$s/100</span><span class="forwp-seo-trends__delta %4$s">%5$s</span></span>',
+			esc_attr( $title ),
+			esc_html( $query ),
+			esc_html( $interest_label ),
+			esc_attr( $delta_class ),
+			esc_html( $delta_label )
+		);
 	}
 
 	public function no_items(): void {
@@ -777,6 +872,67 @@ final class InventoryListTable extends \WP_List_Table {
 			esc_attr( $post_type ),
 			$icon_html,
 			esc_html( $label )
+		);
+	}
+
+	/**
+	 * @param array<string, mixed> $item
+	 */
+	private function render_taxonomies_cell( array $item ): string {
+		$groups = isset( $item['taxonomies'] ) && is_array( $item['taxonomies'] ) ? $item['taxonomies'] : [];
+		if ( [] === $groups ) {
+			return '<span class="forwp-seo-admin-muted">—</span>';
+		}
+
+		$blocks = [];
+		foreach ( $groups as $group ) {
+			if ( ! is_array( $group ) ) {
+				continue;
+			}
+			$taxonomy = sanitize_key( (string) ( $group['taxonomy'] ?? '' ) );
+			$label    = (string) ( $group['label'] ?? $taxonomy );
+			$terms    = isset( $group['terms'] ) && is_array( $group['terms'] ) ? $group['terms'] : [];
+			$links    = [];
+			foreach ( $terms as $term ) {
+				if ( ! is_array( $term ) ) {
+					continue;
+				}
+				$name = (string) ( $term['name'] ?? '' );
+				$id   = (int) ( $term['id'] ?? 0 );
+				if ( '' === $name || $id <= 0 || '' === $taxonomy ) {
+					continue;
+				}
+				$url     = $this->taxonomy_filter_url( $taxonomy, $id );
+				$links[] = '<a href="' . esc_url( $url ) . '">' . esc_html( $name ) . '</a>';
+			}
+			if ( [] === $links ) {
+				continue;
+			}
+			$blocks[] = '<div class="forwp-seo-tax-group"><span class="forwp-seo-tax-group__label">' . esc_html( $label ) . '</span> ' . implode( ', ', $links ) . '</div>';
+		}
+
+		if ( [] === $blocks ) {
+			return '<span class="forwp-seo-admin-muted">—</span>';
+		}
+
+		return '<div class="forwp-seo-tax-groups">' . implode( '', $blocks ) . '</div>';
+	}
+
+	private function taxonomy_filter_url( string $taxonomy, int $term_id ): string {
+		return add_query_arg(
+			array_filter(
+				[
+					'page'                       => Menu::INVENTORY_PAGE_SLUG,
+					'view'                       => 'inventory',
+					Menu::INVENTORY_POST_TYPE_ARG => (string) ( $this->filters['post_type'] ?? '' ),
+					Menu::INVENTORY_TAXONOMY_ARG  => $taxonomy,
+					Menu::INVENTORY_TERM_ARG      => (string) $term_id,
+					'lang'                       => (string) ( $this->filters['lang'] ?? '' ),
+					'status'                     => (string) ( $this->filters['status'] ?? '' ),
+					'missing'                    => (string) ( $this->filters['missing'] ?? '' ),
+				]
+			),
+			admin_url( 'admin.php' )
 		);
 	}
 
@@ -966,14 +1122,51 @@ final class InventoryListTable extends \WP_List_Table {
 		return esc_html( $this->format_gsc_iso_time( (string) ( $item['gsc_last_crawl'] ?? '' ) ) );
 	}
 
-	private function render_text_excerpt_cell( string $value, bool $multiline = false ): string {
+	private function render_focus_keyphrases_cell( string $value ): string {
+		$phrases = preg_split( '/\r\n|\r|\n| · /', $value ) ?: [];
+		$phrases = array_values(
+			array_filter(
+				array_map( 'trim', $phrases ),
+				static function ( string $phrase ): bool {
+					return '' !== $phrase;
+				}
+			)
+		);
+
+		if ( empty( $phrases ) ) {
+			return '<span aria-hidden="true">—</span><span class="screen-reader-text">' . esc_html__( 'Empty', '4wp-seo-helper' ) . '</span>';
+		}
+
+		$items = array_map(
+			static function ( string $phrase ): string {
+				return '<span class="forwp-seo-keyphrases__item">' . esc_html( $phrase ) . '</span>';
+			},
+			$phrases
+		);
+
+		return '<span class="forwp-seo-keyphrases">' . implode( '', $items ) . '</span>';
+	}
+
+	private function render_text_excerpt_cell( string $value, bool $multiline = false, bool $is_auto = false ): string {
 		if ( '' === $value ) {
 			return '<span aria-hidden="true">—</span><span class="screen-reader-text">' . esc_html__( 'Empty', '4wp-seo-helper' ) . '</span>';
 		}
 
 		$display = $multiline ? str_replace( [ "\r\n", "\r", "\n" ], ' · ', $value ) : $value;
+		$excerpt = esc_html( wp_html_excerpt( $display, 80, '…' ) );
 
-		return esc_html( wp_html_excerpt( $display, 80, '…' ) );
+		if ( ! $is_auto ) {
+			return $excerpt;
+		}
+
+		$title = __( 'From the Yoast template (%%variables%%). Not saved as a custom title/description on this post.', '4wp-seo-helper' );
+
+		return sprintf(
+			'<span class="forwp-seo-auto-meta" title="%1$s"><span class="forwp-seo-auto-meta__text">%2$s</span><abbr class="forwp-seo-auto-meta__badge" title="%1$s">%3$s</abbr></span>',
+			esc_attr( $title ),
+			$excerpt,
+			esc_html__( 'auto', '4wp-seo-helper' )
+		);
 	}
 
 	private function format_gsc_unix_time( int $timestamp ): string {

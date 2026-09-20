@@ -10,9 +10,10 @@ A plugin by **[4WP](https://4wp.dev/)**
 
 > WordPress.org listing uses **[readme.txt](../readme.txt)** in the plugin root (not this file).
 
-## Features (v2.2.0)
+## Features (v2.3.0)
 
 - **SEO Inventory table** — filters, missing-field views, CSV export, quick edit
+- **Trends** — Google Trends JSON or related-queries CSV; query + region key; date snapshots and Δ; inventory Trends column
 - **Priority queue** — P1 / P2 / P3 business tiers (names configurable in Settings)
 - **Drag-and-drop** — reorder and move items between priority groups without reload
 - **SEO plugin adapters** — Yoast SEO, All in One SEO, safe fallback

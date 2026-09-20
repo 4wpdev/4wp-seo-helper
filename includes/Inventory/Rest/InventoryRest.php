@@ -10,6 +10,7 @@ use Forwp\SeoHelper\Inventory\Module;
 use Forwp\SeoHelper\Inventory\PostTypeDiscovery;
 use Forwp\SeoHelper\Inventory\PriorityQueue;
 use Forwp\SeoHelper\Inventory\Repository;
+use Forwp\SeoHelper\Inventory\TaxonomyDiscovery;
 use Forwp\SeoHelper\Multilingual\Registry as MultilingualRegistry;
 use Forwp\SeoHelper\SeoMeta\Registry as SeoMetaRegistry;
 use Forwp\SeoHelper\SeoMeta\YoastAdapter;
@@ -179,6 +180,8 @@ final class InventoryRest {
 			'page'      => [ 'type' => 'integer', 'default' => 1 ],
 			'per_page'  => [ 'type' => 'integer', 'default' => 50 ],
 			'post_type' => [ 'type' => 'string' ],
+			'taxonomy'  => [ 'type' => 'string' ],
+			'term'      => [ 'type' => 'integer' ],
 			'lang'      => [ 'type' => 'string' ],
 			'status'    => [ 'type' => 'string', 'default' => 'publish' ],
 			'missing'   => [ 'type' => 'string' ],
@@ -402,6 +405,7 @@ final class InventoryRest {
 			],
 			'post_types'         => PostTypeDiscovery::get_slugs(),
 			'post_types_labeled' => PostTypeDiscovery::get_labeled(),
+			'taxonomies'         => TaxonomyDiscovery::get_labeled(),
 			'inventory_enabled'  => Module::get_instance()->is_enabled(),
 			'auth'               => [
 				'type'   => 'bearer',
@@ -428,6 +432,8 @@ final class InventoryRest {
 			],
 			'filters'            => [
 				'post_type',
+				'taxonomy',
+				'term',
 				'lang',
 				'status',
 				'missing',
@@ -448,6 +454,8 @@ final class InventoryRest {
 			'page'      => (int) $request->get_param( 'page' ),
 			'per_page'  => (int) $request->get_param( 'per_page' ),
 			'post_type' => (string) $request->get_param( 'post_type' ),
+			'taxonomy'  => (string) $request->get_param( 'taxonomy' ),
+			'term'      => (int) $request->get_param( 'term' ),
 			'lang'      => (string) $request->get_param( 'lang' ),
 			'status'    => (string) $request->get_param( 'status' ),
 			'missing'   => (string) $request->get_param( 'missing' ),
@@ -489,6 +497,7 @@ final class InventoryRest {
 			'queue_position',
 			'completeness',
 			'missing',
+			'taxonomies_text',
 		];
 
 		$lines = [ implode( ',', $columns ) ];

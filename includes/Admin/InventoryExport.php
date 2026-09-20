@@ -29,6 +29,8 @@ final class InventoryExport {
 			'page'      => isset( $_GET['paged'] ) ? max( 1, absint( wp_unslash( $_GET['paged'] ) ) ) : 1,
 			'per_page'  => 200,
 			'post_type' => InventoryPage::get_requested_post_type(),
+			'taxonomy'  => InventoryPage::get_requested_taxonomy(),
+			'term'      => InventoryPage::get_requested_term(),
 			'lang'      => sanitize_key( wp_unslash( (string) ( $_GET['lang'] ?? '' ) ) ),
 			'status'    => sanitize_key( wp_unslash( (string) ( $_GET['status'] ?? 'publish' ) ) ),
 			'missing'   => sanitize_key( wp_unslash( (string) ( $_GET['missing'] ?? '' ) ) ),
@@ -58,6 +60,7 @@ final class InventoryExport {
 			'queue_position',
 			'completeness',
 			'missing',
+			'taxonomies_text',
 		];
 
 		$lines = [ implode( ',', $columns ) ];

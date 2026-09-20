@@ -58,6 +58,9 @@ final class Notices {
 				Menu::GSC_PAGE_SLUG,
 				Menu::INVENTORY_PAGE_SLUG,
 				Menu::AI_PAGE_SLUG,
+				Menu::TRENDS_PAGE_SLUG,
+				Menu::POSITIONS_PAGE_SLUG,
+				Menu::DYNAMICS_PAGE_SLUG,
 			],
 			true
 		);

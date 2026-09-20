@@ -7,6 +7,7 @@ namespace Forwp\SeoHelper\Admin;
 
 use Forwp\SeoHelper\Inventory\ExcludedPostTypes;
 use Forwp\SeoHelper\Inventory\PostTypeDiscovery;
+use Forwp\SeoHelper\Inventory\TaxonomyDiscovery;
 use Forwp\SeoHelper\Inventory\PriorityLabels;
 use Forwp\SeoHelper\Inventory\PriorityQueue;
 use Forwp\SeoHelper\Inventory\Repository;
@@ -139,6 +140,8 @@ final class InventoryPage {
 		$filters      = [
 			'page'      => isset( $_GET['paged'] ) ? max( 1, absint( wp_unslash( $_GET['paged'] ) ) ) : 1,
 			'post_type' => self::get_requested_post_type(),
+			'taxonomy'  => self::get_requested_taxonomy(),
+			'term'      => self::get_requested_term(),
 			'lang'      => sanitize_key( wp_unslash( (string) ( $_GET['lang'] ?? '' ) ) ),
 			'status'    => sanitize_key( wp_unslash( (string) ( $_GET['status'] ?? 'publish' ) ) ),
 			'missing'   => sanitize_key( wp_unslash( (string) ( $_GET['missing'] ?? '' ) ) ),
@@ -149,6 +152,22 @@ final class InventoryPage {
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
+		$taxonomy_rows = TaxonomyDiscovery::get_labeled(
+			'' === $filters['post_type'] ? [] : [ $filters['post_type'] ]
+		);
+		$taxonomy_slugs = array_column( $taxonomy_rows, 'slug' );
+		if ( '' !== $filters['taxonomy'] && ! in_array( $filters['taxonomy'], $taxonomy_slugs, true ) ) {
+			$filters['taxonomy'] = '';
+			$filters['term']     = 0;
+		}
+		$term_rows = '' !== $filters['taxonomy'] ? TaxonomyDiscovery::get_terms( $filters['taxonomy'] ) : [];
+		if ( $filters['term'] > 0 ) {
+			$term_ids = array_column( $term_rows, 'id' );
+			if ( ! in_array( $filters['term'], $term_ids, true ) ) {
+				$filters['term'] = 0;
+			}
+		}
+
 		if ( $jump_post_id > 0 ) {
 			$per_page = (int) get_user_option( Menu::INVENTORY_PER_PAGE_OPTION );
 			if ( $per_page < 1 ) {
@@ -158,6 +177,8 @@ final class InventoryPage {
 				$jump_post_id,
 				[
 					'post_type' => $filters['post_type'],
+					'taxonomy'  => $filters['taxonomy'],
+					'term'      => $filters['term'],
 					'lang'      => $filters['lang'],
 					'status'    => $filters['status'],
 					'missing'   => $filters['missing'],
@@ -180,6 +201,8 @@ final class InventoryPage {
 						'page'                       => Menu::INVENTORY_PAGE_SLUG,
 						'view'                       => 'inventory',
 						Menu::INVENTORY_POST_TYPE_ARG => $filters['post_type'],
+						Menu::INVENTORY_TAXONOMY_ARG  => $filters['taxonomy'],
+						Menu::INVENTORY_TERM_ARG      => $filters['term'] > 0 ? (string) $filters['term'] : '',
 						'lang'                       => $filters['lang'],
 						'status'                     => $filters['status'],
 						'missing'                    => $filters['missing'],
@@ -201,6 +224,8 @@ final class InventoryPage {
 					[
 						'action'                     => 'forwp_seo_inventory_export',
 						Menu::INVENTORY_POST_TYPE_ARG => $filters['post_type'],
+						Menu::INVENTORY_TAXONOMY_ARG  => $filters['taxonomy'],
+						Menu::INVENTORY_TERM_ARG      => $filters['term'] > 0 ? (string) $filters['term'] : '',
 						'lang'                       => $filters['lang'],
 						'status'                     => $filters['status'],
 						'missing'                    => $filters['missing'],
@@ -264,6 +289,28 @@ final class InventoryPage {
 							<?php foreach ( PostTypeDiscovery::get_labeled() as $type ) : ?>
 								<option value="<?php echo esc_attr( $type['slug'] ); ?>" <?php selected( $filters['post_type'], $type['slug'] ); ?>>
 									<?php echo esc_html( $type['label'] . ' (' . $type['slug'] . ')' ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+						<select name="<?php echo esc_attr( Menu::INVENTORY_TAXONOMY_ARG ); ?>" onchange="this.form.submit()">
+							<option value=""><?php esc_html_e( 'All taxonomies', '4wp-seo-helper' ); ?></option>
+							<?php foreach ( $taxonomy_rows as $taxonomy ) : ?>
+								<option value="<?php echo esc_attr( $taxonomy['slug'] ); ?>" <?php selected( $filters['taxonomy'], $taxonomy['slug'] ); ?>>
+									<?php echo esc_html( $taxonomy['label'] ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+						<select name="<?php echo esc_attr( Menu::INVENTORY_TERM_ARG ); ?>" <?php disabled( '' === $filters['taxonomy'] ); ?>>
+							<option value="">
+								<?php
+								echo '' === $filters['taxonomy']
+									? esc_html__( 'All terms', '4wp-seo-helper' )
+									: esc_html__( 'All terms in taxonomy', '4wp-seo-helper' );
+								?>
+							</option>
+							<?php foreach ( $term_rows as $term ) : ?>
+								<option value="<?php echo esc_attr( (string) $term['id'] ); ?>" <?php selected( $filters['term'], $term['id'] ); ?>>
+									<?php echo esc_html( $term['name'] ); ?>
 								</option>
 							<?php endforeach; ?>
 						</select>
@@ -639,6 +686,24 @@ final class InventoryPage {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		return sanitize_key( $raw );
+	}
+
+	public static function get_requested_taxonomy(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only inventory taxonomy filter.
+		$raw = isset( $_GET[ Menu::INVENTORY_TAXONOMY_ARG ] )
+			? (string) wp_unslash( $_GET[ Menu::INVENTORY_TAXONOMY_ARG ] )
+			: '';
+
+		return sanitize_key( $raw );
+	}
+
+	public static function get_requested_term(): int {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only inventory term filter.
+		if ( ! isset( $_GET[ Menu::INVENTORY_TERM_ARG ] ) ) {
+			return 0;
+		}
+
+		return absint( wp_unslash( $_GET[ Menu::INVENTORY_TERM_ARG ] ) );
 	}
 
 	private static function request_orderby(): string {

@@ -1,0 +1,18 @@
+#adminmenu .forwp-seo-menu-badge {
+	background: #fec228;
+	border-radius: 2px;
+	color: #303030;
+	display: inline-block;
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	line-height: 1;
+	margin-left: 6px;
+	padding: 3px 5px 2px;
+	text-transform: uppercase;
+	vertical-align: middle;
+}
+
+#adminmenu .wp-submenu a .forwp-seo-menu-badge {
+	float: none;
+}

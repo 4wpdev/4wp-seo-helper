@@ -35,6 +35,63 @@ final class YoastAdapter implements AdapterInterface {
 		];
 	}
 
+	/**
+	 * Resolve Yoast %%variables%% / CPT templates to the values that actually go out.
+	 *
+	 * @param array<string, mixed> $raw read() output
+	 * @return array{title: string, title_is_auto: bool, description: string, description_is_auto: bool}
+	 */
+	public function present( \WP_Post $post, array $raw ): array {
+		$title_raw = trim( (string) ( $raw['title'] ?? '' ) );
+		$desc_raw  = trim( (string) ( $raw['description'] ?? '' ) );
+
+		return [
+			'title'              => $this->resolve_template( $post, $title_raw, 'title', '%%title%% %%page%% %%sep%% %%sitename%%' ),
+			'title_is_auto'      => $this->is_generated( $title_raw ),
+			'description'        => $this->resolve_template( $post, $desc_raw, 'metadesc', '' ),
+			'description_is_auto'=> $this->is_generated( $desc_raw ),
+		];
+	}
+
+	private function is_generated( string $raw ): bool {
+		return '' === $raw || false !== strpos( $raw, '%%' );
+	}
+
+	private function resolve_template( \WP_Post $post, string $raw, string $option_prefix, string $hard_fallback ): string {
+		$source = $raw;
+		if ( '' === $source ) {
+			$source = $this->option_template( $option_prefix . '-' . $post->post_type );
+		}
+		if ( '' === $source ) {
+			$source = $hard_fallback;
+		}
+		if ( '' === $source ) {
+			return '';
+		}
+
+		return $this->replace_vars( $source, $post );
+	}
+
+	private function option_template( string $option ): string {
+		if ( ! class_exists( '\WPSEO_Options' ) ) {
+			return '';
+		}
+
+		$value = \WPSEO_Options::get( $option, '' );
+
+		return is_string( $value ) ? $value : '';
+	}
+
+	private function replace_vars( string $text, \WP_Post $post ): string {
+		if ( ! class_exists( '\WPSEO_Replace_Vars' ) ) {
+			return trim( $text );
+		}
+
+		$replaced = ( new \WPSEO_Replace_Vars() )->replace( $text, $post );
+
+		return is_string( $replaced ) ? trim( $replaced ) : '';
+	}
+
 	public function write( int $post_id, array $fields ): bool {
 		$map = [
 			'title'           => '_yoast_wpseo_title',

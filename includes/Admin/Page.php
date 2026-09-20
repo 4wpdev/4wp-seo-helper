@@ -16,6 +16,7 @@ use Forwp\SeoHelper\Inventory\PostTypeDiscovery;
 use Forwp\SeoHelper\Inventory\PriorityLabels;
 use Forwp\SeoHelper\Inventory\Repository;
 use Forwp\SeoHelper\Multilingual\Registry as MultilingualRegistry;
+use Forwp\SeoHelper\Positions\Settings as PositionsSettings;
 use Forwp\SeoHelper\SeoMeta\Registry as SeoMetaRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -27,6 +28,7 @@ final class Page {
 	private const TAB_SETTINGS  = 'settings';
 	private const TAB_API       = 'api';
 	private const TAB_GSC       = 'gsc';
+	private const TAB_POSITIONS = 'positions';
 
 	/**
 	 * @return list<string>
@@ -35,6 +37,7 @@ final class Page {
 		$tabs = [
 			self::TAB_OVERVIEW,
 			self::TAB_SETTINGS,
+			self::TAB_POSITIONS,
 		];
 
 		if ( Release::is_module_public( Release::MODULE_INVENTORY_API ) ) {
@@ -107,6 +110,7 @@ final class Page {
 					<div class="components-tab-panel__tabs" role="tablist" aria-label="<?php esc_attr_e( '4WP SEO Helper', '4wp-seo-helper' ); ?>">
 						<?php self::render_tab_button( self::TAB_OVERVIEW, __( 'Overview', '4wp-seo-helper' ), $tab ); ?>
 						<?php self::render_tab_button( self::TAB_SETTINGS, __( 'Settings', '4wp-seo-helper' ), $tab ); ?>
+						<?php self::render_tab_button( self::TAB_POSITIONS, __( 'Position providers', '4wp-seo-helper' ), $tab ); ?>
 						<?php if ( Release::is_module_public( Release::MODULE_INVENTORY_API ) ) : ?>
 							<?php self::render_tab_button( self::TAB_API, __( 'Inventory API', '4wp-seo-helper' ), $tab ); ?>
 						<?php endif; ?>
@@ -130,6 +134,10 @@ final class Page {
 
 					<div id="forwp-seo-panel-settings" role="tabpanel" class="components-tab-panel__tab-content" aria-labelledby="forwp-seo-tab-settings" <?php echo self::TAB_SETTINGS !== $tab ? 'hidden' : ''; ?>>
 						<?php self::render_settings_tab( $crossposting_enabled, $inventory_enabled, $gsc_enabled ); ?>
+					</div>
+
+					<div id="forwp-seo-panel-positions" role="tabpanel" class="components-tab-panel__tab-content" aria-labelledby="forwp-seo-tab-positions" <?php echo self::TAB_POSITIONS !== $tab ? 'hidden' : ''; ?>>
+						<?php self::render_positions_tab(); ?>
 					</div>
 
 					<?php if ( Release::is_module_public( Release::MODULE_INVENTORY_API ) ) : ?>
@@ -350,6 +358,8 @@ final class Page {
 
 		<?php self::render_excluded_post_types_panel(); ?>
 
+		<?php self::render_ai_assistant_panel(); ?>
+
 		<?php self::render_coming_soon_modules_panel(); ?>
 		<?php
 	}
@@ -392,8 +402,191 @@ final class Page {
 		<?php
 	}
 
+	private static function render_positions_tab(): void {
+		$providers = PositionsSettings::providers();
+		$open      = PositionsSettings::requested_provider();
+		$key_set   = '' !== PositionsSettings::get_serper_key();
+		?>
+		<form method="post">
+			<?php wp_nonce_field( 'forwp_seo_settings', 'forwp_seo_settings_nonce' ); ?>
+			<input type="hidden" name="forwp_seo_positions_provider" value="<?php echo esc_attr( PositionsSettings::PROVIDER_SERPER ); ?>" />
+			<input type="hidden" name="forwp_seo_open_provider" id="forwp_seo_open_provider" value="<?php echo esc_attr( $open ); ?>" />
+
+			<div class="forwp-seo-intro-card" id="forwp-seo-positions-intro">
+				<h2 class="forwp-seo-intro-card__title"><?php esc_html_e( 'Position providers', '4wp-seo-helper' ); ?></h2>
+				<p class="forwp-seo-intro-card__text">
+					<?php esc_html_e( 'Pick a card to open settings. Live connectors can look up Google SERP positions for your queries. Rank history on the Positions page starts after a key is saved.', '4wp-seo-helper' ); ?>
+				</p>
+			</div>
+
+			<div id="forwp-seo-provider-detail-wrap" class="forwp-seo-provider-detail-wrap" data-open-provider="<?php echo esc_attr( $open ); ?>" hidden>
+				<div class="forwp-seo-provider-detail-head">
+					<h3 class="forwp-seo-admin-section-title forwp-seo-provider-detail-head__title" id="forwp-seo-provider-detail-title"><?php esc_html_e( 'Provider', '4wp-seo-helper' ); ?></h3>
+					<button type="button" class="button" id="forwp-seo-provider-back"><?php esc_html_e( '← Back to overview', '4wp-seo-helper' ); ?></button>
+				</div>
+				<?php foreach ( $providers as $provider ) : ?>
+					<?php self::render_position_provider_detail( $provider, $key_set ); ?>
+				<?php endforeach; ?>
+			</div>
+
+			<h3 class="forwp-seo-admin-section-title forwp-seo-registry-title"><?php esc_html_e( 'Providers', '4wp-seo-helper' ); ?></h3>
+			<p class="forwp-seo-admin-muted forwp-seo-registry-hint"><?php esc_html_e( 'Click a card to open settings or the provider site.', '4wp-seo-helper' ); ?></p>
+			<div class="forwp-seo-provider-grid" id="forwp-seo-provider-grid">
+				<?php foreach ( $providers as $provider ) : ?>
+					<?php self::render_position_provider_card( $provider ); ?>
+				<?php endforeach; ?>
+			</div>
+		</form>
+		<?php
+	}
+
+	/**
+	 * @param array<string, mixed> $provider Provider row from PositionsSettings::providers().
+	 */
+	private static function render_position_provider_card( array $provider ): void {
+		$id      = (string) ( $provider['id'] ?? '' );
+		$label   = (string) ( $provider['label'] ?? '' );
+		$live    = ! empty( $provider['live'] );
+		$ready   = ! empty( $provider['configured'] );
+		$classes = 'forwp-seo-provider-card';
+		if ( $ready ) {
+			$classes .= ' is-enabled';
+		}
+		?>
+		<div
+			class="<?php echo esc_attr( $classes ); ?>"
+			role="button"
+			tabindex="0"
+			data-provider="<?php echo esc_attr( $id ); ?>"
+			data-label="<?php echo esc_attr( $label ); ?>"
+			aria-pressed="false"
+		>
+			<div class="forwp-seo-provider-card__head">
+				<div>
+					<div class="forwp-seo-provider-card__label"><?php echo esc_html( $label ); ?></div>
+					<div class="forwp-seo-provider-card__slug"><code><?php echo esc_html( (string) ( $provider['slug'] ?? $id ) ); ?></code></div>
+				</div>
+				<div class="forwp-seo-provider-card__badges">
+					<?php if ( $live ) : ?>
+						<?php if ( $ready ) : ?>
+							<span class="forwp-seo-badge forwp-seo-badge--on"><?php esc_html_e( 'On', '4wp-seo-helper' ); ?></span>
+						<?php endif; ?>
+						<span class="forwp-seo-badge forwp-seo-badge--live"><?php esc_html_e( 'Live', '4wp-seo-helper' ); ?></span>
+					<?php else : ?>
+						<span class="forwp-seo-badge forwp-seo-badge--soon"><?php esc_html_e( 'Coming soon', '4wp-seo-helper' ); ?></span>
+					<?php endif; ?>
+				</div>
+			</div>
+			<p class="forwp-seo-provider-card__status"><?php echo esc_html( (string) ( $provider['blurb'] ?? '' ) ); ?></p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * @param array<string, mixed> $provider Provider row from PositionsSettings::providers().
+	 */
+	private static function render_position_provider_detail( array $provider, bool $key_set ): void {
+		$id   = (string) ( $provider['id'] ?? '' );
+		$live = ! empty( $provider['live'] );
+		?>
+		<div class="forwp-seo-provider-detail" data-provider="<?php echo esc_attr( $id ); ?>" hidden>
+			<?php if ( $live && PositionsSettings::PROVIDER_SERPER === $id ) : ?>
+				<div class="forwp-seo-provider-detail__panel">
+					<?php self::render_provider_links( $provider ); ?>
+					<div class="forwp-seo-field">
+						<label class="forwp-seo-field__label" for="forwp_seo_positions_serper_key"><?php esc_html_e( 'API key', '4wp-seo-helper' ); ?></label>
+						<input
+							type="password"
+							class="regular-text code"
+							name="forwp_seo_positions_serper_key"
+							id="forwp_seo_positions_serper_key"
+							value=""
+							autocomplete="new-password"
+							placeholder="<?php echo $key_set ? esc_attr__( 'Key saved — paste a new key to replace it', '4wp-seo-helper' ) : ''; ?>"
+						/>
+						<?php if ( $key_set ) : ?>
+							<label class="forwp-seo-toggle-row" style="margin-top:8px;">
+								<input type="checkbox" name="forwp_seo_positions_clear_key" value="1" />
+								<span><?php esc_html_e( 'Remove saved key', '4wp-seo-helper' ); ?></span>
+							</label>
+						<?php endif; ?>
+						<p class="forwp-seo-field__help"><?php esc_html_e( 'Leave empty to keep the current key.', '4wp-seo-helper' ); ?></p>
+					</div>
+					<div class="forwp-seo-credentials-grid">
+						<?php LocaleCombo::render_country( 'forwp_seo_positions_gl', PositionsSettings::get_gl() ); ?>
+						<?php LocaleCombo::render_language( 'forwp_seo_positions_hl', PositionsSettings::get_hl() ); ?>
+					</div>
+					<div class="forwp-seo-form-actions">
+						<?php submit_button( __( 'Save provider', '4wp-seo-helper' ), 'primary', 'forwp_seo_save_position_providers', false ); ?>
+						<?php submit_button( __( 'Test connection', '4wp-seo-helper' ), 'secondary', 'forwp_seo_test_position_provider', false ); ?>
+						<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=' . Menu::POSITIONS_PAGE_SLUG ) ); ?>">
+							<?php esc_html_e( 'Open Positions', '4wp-seo-helper' ); ?>
+						</a>
+					</div>
+				</div>
+			<?php else : ?>
+				<div class="notice notice-info inline">
+					<p><?php echo esc_html( (string) ( $provider['blurb'] ?? __( 'Not available yet.', '4wp-seo-helper' ) ) ); ?></p>
+				</div>
+				<?php self::render_provider_links( $provider ); ?>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * @param array<string, mixed> $provider Provider row.
+	 */
+	private static function render_provider_links( array $provider ): void {
+		$site_url   = (string) ( $provider['site_url'] ?? '' );
+		$site_label = (string) ( $provider['site_label'] ?? $site_url );
+		$extra      = is_array( $provider['extra_links'] ?? null ) ? $provider['extra_links'] : [];
+		if ( '' === $site_url ) {
+			return;
+		}
+		?>
+		<p class="forwp-seo-field__links">
+			<a href="<?php echo esc_url( $site_url ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php
+				printf(
+					/* translators: %s: provider hostname */
+					esc_html__( 'Provider site: %s', '4wp-seo-helper' ),
+					esc_html( $site_label )
+				);
+				?>
+			</a>
+			<?php foreach ( $extra as $link ) : ?>
+				<?php
+				$url   = (string) ( $link['url'] ?? '' );
+				$label = (string) ( $link['label'] ?? '' );
+				if ( '' === $url || '' === $label ) {
+					continue;
+				}
+				?>
+				<span aria-hidden="true">·</span>
+				<a href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $label ); ?></a>
+			<?php endforeach; ?>
+		</p>
+		<?php
+	}
+
 	private static function render_gsc_tab( bool $gsc_enabled ): void {
 		GscAdmin::get_instance()->render_connect_section( $gsc_enabled );
+	}
+
+	private static function render_ai_assistant_panel(): void {
+		$url = admin_url( 'admin.php?page=' . Menu::AI_PAGE_SLUG );
+		?>
+		<div class="forwp-seo-panel">
+			<h2 class="forwp-seo-admin-section-title"><?php esc_html_e( 'AI Assistant', '4wp-seo-helper' ); ?></h2>
+			<p class="forwp-seo-admin-muted">
+				<?php esc_html_e( 'The assistant is not in the sidebar. Open it from here when you need a draft for titles or meta.', '4wp-seo-helper' ); ?>
+			</p>
+			<p>
+				<a class="button" href="<?php echo esc_url( $url ); ?>"><?php esc_html_e( 'Open AI Assistant', '4wp-seo-helper' ); ?></a>
+			</p>
+		</div>
+		<?php
 	}
 
 	private static function render_coming_soon_modules_panel(): void {
@@ -564,6 +757,22 @@ final class Page {
 			$saved = 'settings';
 		}
 
+		if ( ! empty( $_POST['forwp_seo_save_position_providers'] ) || ! empty( $_POST['forwp_seo_test_position_provider'] ) ) {
+			PositionsSettings::save_from_post();
+			$tab   = self::TAB_POSITIONS;
+			$saved = 'positions';
+
+			if ( ! empty( $_POST['forwp_seo_test_position_provider'] ) ) {
+				$result = PositionsSettings::test_connection();
+				set_transient(
+					'forwp_seo_positions_test_' . get_current_user_id(),
+					$result,
+					60
+				);
+				$saved = 'positions_test';
+			}
+		}
+
 		if ( ! empty( $_POST['forwp_seo_save_excluded_post_types'] ) ) {
 			$slugs = isset( $_POST['forwp_seo_excluded_post_types'] ) ? (array) wp_unslash( $_POST['forwp_seo_excluded_post_types'] ) : [];
 			ExcludedPostTypes::set( $slugs );
@@ -588,14 +797,20 @@ final class Page {
 			return null;
 		}
 
-		return add_query_arg(
-			[
-				'page'  => Menu::SETTINGS_PAGE_SLUG,
-				'tab'   => $tab,
-				'saved' => $saved,
-			],
-			admin_url( 'admin.php' )
-		);
+		$args = [
+			'page'  => Menu::SETTINGS_PAGE_SLUG,
+			'tab'   => $tab,
+			'saved' => $saved,
+		];
+
+		if ( self::TAB_POSITIONS === $tab ) {
+			$open = sanitize_key( wp_unslash( (string) ( $_POST['forwp_seo_open_provider'] ?? PositionsSettings::PROVIDER_SERPER ) ) );
+			if ( '' !== $open ) {
+				$args['provider'] = $open;
+			}
+		}
+
+		return add_query_arg( $args, admin_url( 'admin.php' ) );
 	}
 
 	private static function render_notices(): void {
@@ -610,6 +825,19 @@ final class Page {
 				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Priority tiers saved.', '4wp-seo-helper' ) . '</p></div>';
 			} elseif ( 'excluded_types' === $saved ) {
 				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Excluded post types saved.', '4wp-seo-helper' ) . '</p></div>';
+			} elseif ( 'positions' === $saved ) {
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Position provider saved.', '4wp-seo-helper' ) . '</p></div>';
+			} elseif ( 'positions_test' === $saved ) {
+				$test = get_transient( 'forwp_seo_positions_test_' . get_current_user_id() );
+				delete_transient( 'forwp_seo_positions_test_' . get_current_user_id() );
+				if ( is_array( $test ) ) {
+					$ok = ! empty( $test['ok'] );
+					printf(
+						'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+						$ok ? 'success' : 'error',
+						esc_html( (string) ( $test['message'] ?? '' ) )
+					);
+				}
 			}
 		}
 
@@ -673,6 +901,12 @@ final class Page {
 				'stroke-width'    => true,
 				'stroke-linecap'  => true,
 				'stroke-linejoin' => true,
+			],
+			'circle' => [
+				'cx'   => true,
+				'cy'   => true,
+				'r'    => true,
+				'fill' => true,
 			],
 		];
 	}

@@ -11,14 +11,17 @@ use Forwp\SeoHelper\Admin\Menu;
 use Forwp\SeoHelper\Admin\Notices;
 use Forwp\SeoHelper\Blocks\TechArticleWrappers;
 use Forwp\SeoHelper\CrossPosting\Module as CrossPostingModule;
+use Forwp\SeoHelper\Drive\Capabilities as DriveCapabilities;
 use Forwp\SeoHelper\Gsc\Admin as GscAdmin;
 use Forwp\SeoHelper\Gsc\Indexing;
 use Forwp\SeoHelper\Gsc\Module as GscModule;
 use Forwp\SeoHelper\Llms\Generator;
+use Forwp\SeoHelper\Positions\Module as PositionsModule;
 use Forwp\SeoHelper\Schema\TechArticle;
 use Forwp\SeoHelper\Schema\TechArticleRest;
 use Forwp\SeoHelper\Schema\ExternalEntities;
 use Forwp\SeoHelper\Inventory\Module as InventoryModule;
+use Forwp\SeoHelper\Trends\Module as TrendsModule;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -47,9 +50,12 @@ final class Extension {
 		TechArticleRest::get_instance();
 		ExternalEntities::get_instance();
 		TechArticleWrappers::get_instance();
+		DriveCapabilities::init();
 		Generator::get_instance();
 		CrossPostingModule::get_instance();
 		InventoryModule::get_instance();
+		PositionsModule::get_instance();
+		TrendsModule::get_instance();
 		GscModule::get_instance();
 		GscAdmin::get_instance(); // Must be initialized for REST API callback
 		Indexing::get_instance();

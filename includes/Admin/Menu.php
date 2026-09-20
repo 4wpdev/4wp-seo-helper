@@ -24,7 +24,11 @@ final class Menu {
 	public const INVENTORY_PAGE_SLUG       = 'forwp-seo-inventory';
 	public const DYNAMICS_PAGE_SLUG        = 'forwp-seo-dynamics';
 	public const AI_PAGE_SLUG              = 'forwp-seo-ai';
+	public const TRENDS_PAGE_SLUG          = 'forwp-seo-trends';
+	public const POSITIONS_PAGE_SLUG       = 'forwp-seo-positions';
 	public const INVENTORY_POST_TYPE_ARG   = 'forwp_post_type';
+	public const INVENTORY_TAXONOMY_ARG    = 'forwp_taxonomy';
+	public const INVENTORY_TERM_ARG        = 'forwp_term';
 	public const INVENTORY_PER_PAGE_OPTION  = 'forwp_seo_inventory_per_page';
 	public const INVENTORY_PER_PAGE_DEFAULT = 20;
 
@@ -47,6 +51,12 @@ final class Menu {
 
 	/** @var string|null */
 	private static $ai_page_hook = null;
+
+	/** @var string|null */
+	private static $trends_page_hook = null;
+
+	/** @var string|null */
+	private static $positions_page_hook = null;
 
 	public static function get_instance(): self {
 		if ( null === self::$instance ) {
@@ -101,15 +111,6 @@ final class Menu {
 			[ InventoryPage::class, 'render' ]
 		);
 
-		self::$dynamics_page_hook = add_submenu_page(
-			self::PAGE_SLUG,
-			__( 'Dynamics', '4wp-seo-helper' ),
-			__( 'Dynamics', '4wp-seo-helper' ),
-			'manage_options',
-			self::DYNAMICS_PAGE_SLUG,
-			[ DynamicsPage::class, 'render' ]
-		);
-
 		if ( Release::is_module_public( Release::MODULE_GSC ) ) {
 			add_submenu_page(
 				null,
@@ -125,15 +126,33 @@ final class Menu {
 			self::$gsc_page_hook = add_submenu_page(
 				self::PAGE_SLUG,
 				__( 'Search Console', '4wp-seo-helper' ),
-				__( 'GSC', '4wp-seo-helper' ),
+				__( 'G Webmaster Con.', '4wp-seo-helper' ),
 				'manage_options',
 				self::GSC_PAGE_SLUG,
 				[ GscPage::class, 'render' ]
 			);
 		}
 
-		self::$ai_page_hook = add_submenu_page(
+		self::$trends_page_hook = add_submenu_page(
 			self::PAGE_SLUG,
+			__( 'Google Trends', '4wp-seo-helper' ),
+			__( 'Google Trends', '4wp-seo-helper' ),
+			'manage_options',
+			self::TRENDS_PAGE_SLUG,
+			[ TrendsPage::class, 'render' ]
+		);
+
+		self::$positions_page_hook = add_submenu_page(
+			self::PAGE_SLUG,
+			__( 'Positions', '4wp-seo-helper' ),
+			__( 'Positions', '4wp-seo-helper' ),
+			'manage_options',
+			self::POSITIONS_PAGE_SLUG,
+			[ PositionsPage::class, 'render' ]
+		);
+
+		self::$ai_page_hook = add_submenu_page(
+			null,
 			__( 'AI Assistant', '4wp-seo-helper' ),
 			__( 'AI Assistant', '4wp-seo-helper' ),
 			'manage_options',
@@ -150,6 +169,15 @@ final class Menu {
 			[ Page::class, 'render' ]
 		);
 
+		self::$dynamics_page_hook = add_submenu_page(
+			self::PAGE_SLUG,
+			__( 'Dynamics', '4wp-seo-helper' ),
+			__( 'Dynamics', '4wp-seo-helper' ) . ' <span class="forwp-seo-menu-badge">' . esc_html__( 'Dev', '4wp-seo-helper' ) . '</span>',
+			'manage_options',
+			self::DYNAMICS_PAGE_SLUG,
+			[ DynamicsPage::class, 'render' ]
+		);
+
 		if ( is_string( self::$dashboard_page_hook ) && '' !== self::$dashboard_page_hook ) {
 			add_action( 'load-' . self::$dashboard_page_hook, [ DashboardPage::class, 'on_load' ] );
 		}
@@ -164,6 +192,14 @@ final class Menu {
 
 		if ( is_string( self::$inventory_page_hook ) && '' !== self::$inventory_page_hook ) {
 			add_action( 'load-' . self::$inventory_page_hook, [ $this, 'inventory_screen_options' ] );
+		}
+
+		if ( is_string( self::$trends_page_hook ) && '' !== self::$trends_page_hook ) {
+			add_action( 'load-' . self::$trends_page_hook, [ TrendsPage::class, 'handle_load' ] );
+		}
+
+		if ( is_string( self::$positions_page_hook ) && '' !== self::$positions_page_hook ) {
+			add_action( 'load-' . self::$positions_page_hook, [ PositionsPage::class, 'handle_load' ] );
 		}
 	}
 
@@ -248,6 +284,13 @@ final class Menu {
 	}
 
 	public function enqueue_admin_assets( string $hook_suffix ): void {
+		wp_enqueue_style(
+			'forwp-seo-admin-menu',
+			FORWP_SEO_HELPER_URL . 'assets/css/admin-menu.css',
+			[],
+			FORWP_SEO_HELPER_VERSION
+		);
+
 		if (
 			'toplevel_page_' . self::PAGE_SLUG === $hook_suffix
 			|| ( is_string( self::$dashboard_page_hook ) && self::$dashboard_page_hook === $hook_suffix )
@@ -299,19 +342,66 @@ final class Menu {
 			return;
 		}
 
+		if (
+			( is_string( self::$trends_page_hook ) && self::$trends_page_hook === $hook_suffix )
+			|| str_ends_with( $hook_suffix, '_page_' . self::TRENDS_PAGE_SLUG )
+		) {
+			wp_enqueue_style(
+				'forwp-seo-admin-settings',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-settings.css',
+				[],
+				FORWP_SEO_HELPER_VERSION
+			);
+			wp_enqueue_style(
+				'forwp-seo-admin-trends',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-trends.css',
+				[ 'forwp-seo-admin-settings' ],
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/css/admin-trends.css' )
+			);
+			wp_enqueue_script(
+				'forwp-seo-admin-trends',
+				FORWP_SEO_HELPER_URL . 'assets/js/admin-trends.js',
+				[],
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/js/admin-trends.js' ),
+				true
+			);
+			return;
+		}
+
+		if (
+			( is_string( self::$positions_page_hook ) && self::$positions_page_hook === $hook_suffix )
+			|| str_ends_with( $hook_suffix, '_page_' . self::POSITIONS_PAGE_SLUG )
+		) {
+			wp_enqueue_style( 'wp-components' );
+			wp_enqueue_style(
+				'forwp-seo-admin-settings',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-settings.css',
+				[ 'wp-components' ],
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/css/admin-settings.css' )
+			);
+			wp_enqueue_script(
+				'forwp-seo-admin-tabs',
+				FORWP_SEO_HELPER_URL . 'assets/js/admin-tabs.js',
+				[],
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/js/admin-tabs.js' ),
+				true
+			);
+			return;
+		}
+
 		if ( is_string( self::$settings_page_hook ) && self::$settings_page_hook === $hook_suffix ) {
 			wp_enqueue_style( 'wp-components' );
 			wp_enqueue_style(
 				'forwp-seo-admin-settings',
 				FORWP_SEO_HELPER_URL . 'assets/css/admin-settings.css',
 				[ 'wp-components' ],
-				FORWP_SEO_HELPER_VERSION
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/css/admin-settings.css' )
 			);
 			wp_enqueue_script(
 				'forwp-seo-admin-tabs',
 				FORWP_SEO_HELPER_URL . 'assets/js/admin-tabs.js',
 				[],
-				FORWP_SEO_HELPER_VERSION,
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/js/admin-tabs.js' ),
 				true
 			);
 			return;
