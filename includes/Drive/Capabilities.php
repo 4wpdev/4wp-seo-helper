@@ -34,28 +34,28 @@ final class Capabilities {
 				'techarticle-goal',
 				TechArticleWrappers::GOAL_BLOCK,
 				'TechArticle Goal',
-				'Goal',
+				'Goal, Мета',
 				'Role: outcome. H2 until the next H2. Heading text is set in Drive Patterns or pinned in Incoming.'
 			),
 			self::row(
 				'techarticle-context',
 				TechArticleWrappers::CONTEXT_BLOCK,
 				'TechArticle Context',
-				'Context',
+				'Context, Контекст',
 				'Role: problem / context. H2 until the next H2. Add language aliases in Patterns.'
 			),
 			self::row(
 				'techarticle-steps',
 				TechArticleWrappers::STEPS_BLOCK,
 				'TechArticle Steps',
-				'Steps',
+				'Steps, Кроки',
 				'Role: steps. Numbered list or H3 items stay as core blocks inside the wrapper.'
 			),
 			self::row(
 				'techarticle-issues',
 				TechArticleWrappers::ISSUES_BLOCK,
 				'TechArticle Common mistakes',
-				'Common mistakes',
+				'Common mistakes, Типові помилки',
 				'Role: common mistakes. List or paragraphs until the next H2.'
 			),
 		];
@@ -90,7 +90,7 @@ final class Capabilities {
 				'description'      => (string) ( $row['prompt'] ?? '' ),
 				'recipe_type'      => 'section-wrap',
 				'block'            => (string) ( $row['block'] ?? '' ),
-				'requires_plugins' => [],
+				'requires_plugins' => [ '4wp-seo-helper/4wp-seo-helper.php' ],
 				'available'        => true,
 				'default_enabled'  => false,
 				'doc_hint'         => (string) ( $row['prompt'] ?? '' ),

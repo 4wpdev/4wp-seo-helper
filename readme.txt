@@ -4,7 +4,7 @@ Tags: seo, inventory, yoast, search console, google
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.4.0
+Stable tag: 2.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -257,6 +257,10 @@ When an administrator configures a connector under **Settings → Connectors** a
 
 == Changelog ==
 
+= 2.4.1 =
+* **4WP Drive** — register TechArticle wraps for import mapping: Goal, Context, Steps, Common mistakes. Drive Patterns → Integrations Plugins lists this plugin when it is active. See [4WP Drive](https://wordpress.org/plugins/4wp-drive/).
+* Heading aliases include Ukrainian seeds (Мета, Контекст, Кроки, Типові помилки); titles stay editable in Drive Patterns.
+
 = 2.4.0 =
 * **Positions:** 4WP SEO → Positions. Track SERP rank per query + country via Serper; Search Console property is the domain we look for.
 * Dated organic snapshots (JSON); Update icon; depth Top 10 / 20 / 30 (extra pages only if the site is missing).
@@ -305,6 +309,9 @@ When an administrator configures a connector under **Settings → Connectors** a
 * Future modules (TechArticle, LLMS.txt, cross posting) visible as Coming soon in admin.
 
 == Upgrade Notice ==
+
+= 2.4.1 =
+Registers TechArticle section wraps with 4WP Drive so imported documents can map Goal / Context / Steps / Common mistakes. https://wordpress.org/plugins/4wp-drive/
 
 = 2.4.0 =
 New Positions screen: Serper rank checks against your Search Console property, dated SERP snapshots, and People also ask / related searches.

@@ -4,11 +4,19 @@
 [![WordPress 6.0+](https://img.shields.io/badge/WordPress-6.0%2B-blue.svg?style=flat-square)](https://wordpress.org/)
 [![PHP 8.0+](https://img.shields.io/badge/PHP-8.0%2B-777bb4.svg?style=flat-square)](https://www.php.net/)
 
-**Site-wide SEO Inventory and Google Search Console in wp-admin.** Audit titles, meta descriptions, and completeness; mark **P1–P3** business priority; sync Search Analytics; inspect URLs. Optional **AI Assistant** generates SEO title, meta description, and focus keyphrases through the standard **WordPress AI Client / Connectors** — not a custom vendor SDK.
+**Site-wide SEO Inventory, Google Search Console, Trends, and SERP Positions in wp-admin.** Audit titles, meta descriptions, and completeness; mark **P1–P3** business priority; sync Search Analytics; inspect URLs; track ranks via Serper. Optional **AI Assistant** generates SEO title, meta description, and focus keyphrases through the standard **WordPress AI Client / Connectors** — not a custom vendor SDK.
 
 A plugin by **[4WP](https://4wp.dev/)** · Directory listing: [`readme.txt`](readme.txt) (canonical for WordPress.org)
 
 Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
+
+## Version 2.4.1
+
+- **4WP Drive** — TechArticle wraps for document import: Goal, Context, Steps, Common mistakes. Activate this plugin so Drive Patterns can list the wraps. [4WP Drive on WordPress.org](https://wordpress.org/plugins/4wp-drive/).
+
+## Version 2.4.0
+
+- **Positions:** query + country rank checks via Serper. Search Console property is the domain we look for. Dated organic snapshots, SERP title hover, Ask / Suggest (People also ask + related searches) with source query IDs.
 
 ## Version 2.3.0
 
@@ -23,7 +31,9 @@ Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 
 ## Features
 
+- **4WP Drive** — TechArticle Goal / Context / Steps / Common mistakes on import ([4WP Drive](https://wordpress.org/plugins/4wp-drive/))
 - **Trends** — Google Trends JSON, related-queries CSV, or time-series CSV (query + region snapshots)
+- **Positions** — Serper SERP checks vs Search Console property; snapshots; People also ask / related searches
 - **SEO Inventory** — filters, missing fields, CSV export, two-column Quick Edit
 - **Priority queue** — P1 / P2 / P3 lanes (business priority, not SEO score)
 - **Yoast SEO** and **All in One SEO** adapters
@@ -54,6 +64,7 @@ The plugin does not ship API keys or talk to a model until the site administrato
 | Dynamics | `forwp-seo-dynamics` |
 | GSC | `forwp-seo-gsc` |
 | Trends | `forwp-seo-trends` |
+| Positions | `forwp-seo-positions` |
 | AI Assistant | `forwp-seo-ai` |
 | Settings | `forwp-seo-settings` |
 
@@ -63,6 +74,7 @@ The plugin does not ship API keys or talk to a model until the site administrato
 - PHP **8.0+**
 - **Yoast SEO** or **All in One SEO** (recommended for inventory read/write)
 - Optional: Google Cloud OAuth + Search Console API
+- Optional: Serper API key for Positions
 - Optional: **WordPress AI Client** + a connector under **Settings → Connectors**
 
 ## License
