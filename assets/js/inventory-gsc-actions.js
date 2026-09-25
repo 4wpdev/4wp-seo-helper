@@ -158,16 +158,31 @@
 		} );
 	}
 
+	function objectQuery( button ) {
+		var termId = button.getAttribute( 'data-term-id' );
+		if ( termId ) {
+			return 'term_id=' + encodeURIComponent( termId );
+		}
+		return 'post_id=' + encodeURIComponent( button.getAttribute( 'data-post-id' ) || '' );
+	}
+
+	function objectBody( button ) {
+		var termId = button.getAttribute( 'data-term-id' );
+		if ( termId ) {
+			return { term_id: parseInt( termId, 10 ) };
+		}
+		return { post_id: parseInt( button.getAttribute( 'data-post-id' ), 10 ) };
+	}
+
 	function handleRefresh( row, button ) {
-		var postId = button.getAttribute( 'data-post-id' );
-		if ( ! postId ) {
+		if ( ! button.getAttribute( 'data-post-id' ) && ! button.getAttribute( 'data-term-id' ) ) {
 			return;
 		}
 
 		setRowBusy( row, true );
 		setButtonLabel( button, cfg.i18n.refreshing );
 
-		apiRequest( 'gsc/post-index?post_id=' + encodeURIComponent( postId ) + '&inspect=1' )
+		apiRequest( 'gsc/post-index?' + objectQuery( button ) + '&inspect=1' )
 			.then( function ( response ) {
 				if ( ! response.ready && response.message ) {
 					window.alert( response.message );
@@ -185,15 +200,14 @@
 	}
 
 	function handleRequestIndex( row, button ) {
-		var postId = button.getAttribute( 'data-post-id' );
-		if ( ! postId ) {
+		if ( ! button.getAttribute( 'data-post-id' ) && ! button.getAttribute( 'data-term-id' ) ) {
 			return;
 		}
 
 		setRowBusy( row, true );
 		setButtonLabel( button, cfg.i18n.requesting );
 
-		apiRequest( 'gsc/request-index', 'POST', { post_id: parseInt( postId, 10 ) } )
+		apiRequest( 'gsc/request-index', 'POST', objectBody( button ) )
 			.then( function ( response ) {
 				if ( ! response.ready && response.message ) {
 					window.alert( response.message );

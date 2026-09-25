@@ -11,8 +11,10 @@ use Forwp\SeoHelper\Gsc\Admin as GscAdmin;
 use Forwp\SeoHelper\Gsc\Module as GscModule;
 use Forwp\SeoHelper\Gsc\Sync as GscSync;
 use Forwp\SeoHelper\Inventory\ExcludedPostTypes;
+use Forwp\SeoHelper\Inventory\ExcludedTaxonomies;
 use Forwp\SeoHelper\Inventory\Module as InventoryModule;
 use Forwp\SeoHelper\Inventory\PostTypeDiscovery;
+use Forwp\SeoHelper\Inventory\TaxonomyDiscovery;
 use Forwp\SeoHelper\Inventory\PriorityLabels;
 use Forwp\SeoHelper\Inventory\Repository;
 use Forwp\SeoHelper\Multilingual\Registry as MultilingualRegistry;
@@ -357,6 +359,7 @@ final class Page {
 		</div>
 
 		<?php self::render_excluded_post_types_panel(); ?>
+		<?php self::render_excluded_taxonomies_panel(); ?>
 
 		<?php self::render_ai_assistant_panel(); ?>
 
@@ -396,6 +399,44 @@ final class Page {
 				</div>
 				<div class="forwp-seo-form-actions">
 					<?php submit_button( __( 'Save excluded types', '4wp-seo-helper' ), 'secondary', 'submit', false ); ?>
+				</div>
+			</form>
+		</div>
+		<?php
+	}
+
+	private static function render_excluded_taxonomies_panel(): void {
+		$taxonomies = TaxonomyDiscovery::get_manageable_archive_labeled();
+		if ( [] === $taxonomies ) {
+			return;
+		}
+		?>
+		<div class="forwp-seo-panel">
+			<h2 class="forwp-seo-admin-section-title"><?php esc_html_e( 'Exclude taxonomies', '4wp-seo-helper' ); ?></h2>
+			<p class="forwp-seo-admin-muted">
+				<?php esc_html_e( 'Hide taxonomy archive pages from SEO Inventory. Assigned terms on posts stay visible. Saved until you uncheck them.', '4wp-seo-helper' ); ?>
+			</p>
+			<form method="post">
+				<?php wp_nonce_field( 'forwp_seo_settings', 'forwp_seo_settings_nonce' ); ?>
+				<input type="hidden" name="forwp_seo_save_excluded_taxonomies" value="1" />
+				<div class="forwp-seo-exclude-types">
+					<?php foreach ( $taxonomies as $taxonomy ) : ?>
+						<label class="forwp-seo-exclude-types__item">
+							<input
+								type="checkbox"
+								name="forwp_seo_excluded_taxonomies[]"
+								value="<?php echo esc_attr( $taxonomy['slug'] ); ?>"
+								<?php checked( $taxonomy['excluded'] ); ?>
+							/>
+							<span>
+								<?php echo esc_html( $taxonomy['label'] ); ?>
+								<code><?php echo esc_html( $taxonomy['slug'] ); ?></code>
+							</span>
+						</label>
+					<?php endforeach; ?>
+				</div>
+				<div class="forwp-seo-form-actions">
+					<?php submit_button( __( 'Save excluded taxonomies', '4wp-seo-helper' ), 'secondary', 'submit', false ); ?>
 				</div>
 			</form>
 		</div>
@@ -780,6 +821,13 @@ final class Page {
 			$saved = 'excluded_types';
 		}
 
+		if ( ! empty( $_POST['forwp_seo_save_excluded_taxonomies'] ) ) {
+			$slugs = isset( $_POST['forwp_seo_excluded_taxonomies'] ) ? (array) wp_unslash( $_POST['forwp_seo_excluded_taxonomies'] ) : [];
+			ExcludedTaxonomies::set( $slugs );
+			$tab   = self::TAB_SETTINGS;
+			$saved = 'excluded_taxonomies';
+		}
+
 		if ( ! empty( $_POST['forwp_seo_save_priority_labels'] ) ) {
 			PriorityLabels::save(
 				[
@@ -825,6 +873,8 @@ final class Page {
 				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Priority tiers saved.', '4wp-seo-helper' ) . '</p></div>';
 			} elseif ( 'excluded_types' === $saved ) {
 				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Excluded post types saved.', '4wp-seo-helper' ) . '</p></div>';
+			} elseif ( 'excluded_taxonomies' === $saved ) {
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Excluded taxonomies saved.', '4wp-seo-helper' ) . '</p></div>';
 			} elseif ( 'positions' === $saved ) {
 				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Position provider saved.', '4wp-seo-helper' ) . '</p></div>';
 			} elseif ( 'positions_test' === $saved ) {

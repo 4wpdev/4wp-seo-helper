@@ -39,6 +39,22 @@ final class FocusKeyphrases {
 	/**
 	 * @param list<string> $phrases
 	 */
+	public static function parse( string $input ): array {
+		return self::normalize_input( $input );
+	}
+
+	public static function normalize_key( string $phrase ): string {
+		$phrase = trim( preg_replace( '/\s+/u', ' ', $phrase ) ?? '' );
+		if ( function_exists( 'mb_strtolower' ) ) {
+			return mb_strtolower( $phrase );
+		}
+
+		return strtolower( $phrase );
+	}
+
+	/**
+	 * @param list<string> $phrases
+	 */
 	public static function format( array $phrases ): string {
 		return implode( "\n", $phrases );
 	}

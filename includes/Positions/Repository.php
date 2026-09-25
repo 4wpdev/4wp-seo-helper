@@ -109,6 +109,29 @@ final class Repository {
 	}
 
 	/**
+	 * Dated check snapshots for all queries (oldest first).
+	 *
+	 * @return list<array{query_text: string, checked_at: string, payload: string}>
+	 */
+	public static function list_check_snapshots(): array {
+		global $wpdb;
+
+		$queries = Schema::queries_table();
+		$checks  = Schema::checks_table();
+
+		$sql = "SELECT q.query_text, c.checked_at, c.payload
+			FROM {$checks} c
+			INNER JOIN {$queries} q ON q.id = c.query_id
+			WHERE c.payload IS NOT NULL AND c.payload <> ''
+			ORDER BY c.checked_at ASC, c.id ASC";
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+		return is_array( $rows ) ? $rows : [];
+	}
+
+	/**
 	 * @param array<string, mixed> $check
 	 */
 	public static function save_check( int $query_id, array $check ): int {

@@ -54,6 +54,9 @@ register_activation_hook(
 		if ( class_exists( '\Forwp\SeoHelper\Positions\Module' ) ) {
 			\Forwp\SeoHelper\Positions\Module::activate();
 		}
+		if ( class_exists( '\Forwp\SeoHelper\FocusKeywords\Module' ) ) {
+			\Forwp\SeoHelper\FocusKeywords\Module::activate();
+		}
 	}
 );
 

@@ -191,8 +191,8 @@ final class PositionsPage {
 									}
 									?>
 								</td>
-								<td>
-									<?php echo $pos && (int) $pos > 0 ? esc_html( (string) (int) $pos ) : '—'; ?>
+								<td class="forwp-seo-positions-col--pos">
+									<?php self::render_site_positions( $organic, $pos ); ?>
 								</td>
 								<td class="forwp-seo-positions-col--ideas">
 									<?php self::render_query_ideas( $id, $paa, $suggest ); ?>
@@ -369,11 +369,49 @@ final class PositionsPage {
 		$selected = Client::normalize_pages( $selected );
 		?>
 		<select name="<?php echo esc_attr( $name ); ?>" class="<?php echo esc_attr( $class ); ?>" title="<?php esc_attr_e( 'SERP depth. Extra pages are requested only if this site is missing from the previous page.', '4wp-seo-helper' ); ?>">
-			<option value="1" <?php selected( $selected, 1 ); ?>><?php esc_html_e( 'Top 10', '4wp-seo-helper' ); ?></option>
-			<option value="2" <?php selected( $selected, 2 ); ?>><?php esc_html_e( 'Top 20', '4wp-seo-helper' ); ?></option>
-			<option value="3" <?php selected( $selected, 3 ); ?>><?php esc_html_e( 'Top 30', '4wp-seo-helper' ); ?></option>
+			<?php for ( $pages = 1; $pages <= Client::MAX_PAGES; $pages++ ) : ?>
+				<option value="<?php echo esc_attr( (string) $pages ); ?>" <?php selected( $selected, $pages ); ?>>
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: %d: last rank included (10, 20, … 50) */
+							__( 'Top %d', '4wp-seo-helper' ),
+							$pages * Client::PAGE_SIZE
+						)
+					);
+					?>
+				</option>
+			<?php endfor; ?>
 		</select>
 		<?php
+	}
+
+	/**
+	 * @param list<array{rank: int, title: string, link: string, snippet: string, ours: bool}> $organic
+	 * @param mixed $fallback Stored first site_position.
+	 */
+	private static function render_site_positions( array $organic, $fallback ): void {
+		$hits = Client::ours_hits( $organic );
+		if ( [] === $hits ) {
+			$rank = (int) $fallback;
+			echo $rank > 0 ? esc_html( (string) $rank ) : '—';
+			return;
+		}
+
+		echo '<ul class="forwp-seo-positions-ours">';
+		foreach ( $hits as $hit ) {
+			$path = (string) ( $hit['path'] ?? '/' );
+			$link = (string) ( $hit['link'] ?? '' );
+			echo '<li>';
+			echo '<span class="forwp-seo-positions-ours__rank">' . esc_html( (string) (int) $hit['rank'] ) . '</span>';
+			if ( '' !== $link ) {
+				echo ' <a href="' . esc_url( $link ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $path ) . '</a>';
+			} else {
+				echo ' <span>' . esc_html( $path ) . '</span>';
+			}
+			echo '</li>';
+		}
+		echo '</ul>';
 	}
 
 	/**
@@ -396,13 +434,14 @@ final class PositionsPage {
 				<ol class="forwp-seo-positions-preview__list">
 					<?php foreach ( $organic as $hit ) : ?>
 						<?php
-						$host = (string) wp_parse_url( (string) $hit['link'], PHP_URL_HOST );
+						$link  = (string) ( $hit['link'] ?? '' );
+						$label = Target::link_label( $link );
 						?>
 						<li class="<?php echo ! empty( $hit['ours'] ) ? 'is-ours' : ''; ?>">
 							<span class="forwp-seo-positions-preview__rank"><?php echo esc_html( (string) (int) $hit['rank'] ); ?></span>
 							<span class="forwp-seo-positions-preview__body">
 								<span class="forwp-seo-positions-preview__hit"><?php echo esc_html( (string) $hit['title'] ); ?></span>
-								<a href="<?php echo esc_url( (string) $hit['link'] ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $host ); ?></a>
+								<a href="<?php echo esc_url( $link ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $label ); ?></a>
 							</span>
 						</li>
 					<?php endforeach; ?>

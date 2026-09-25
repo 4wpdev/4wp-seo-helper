@@ -100,4 +100,73 @@
 			},
 		}
 	);
+
+	const completionColumns = [
+		[ 'perfect', __( 'What you nailed', '4wp-seo-helper' ) ],
+		[ 'optimize', __( 'Level up', '4wp-seo-helper' ) ],
+		[ 'next', __( "What's next", '4wp-seo-helper' ) ],
+	];
+
+	registerBlockType( 'forwp-seo/techarticle-completion', {
+		title: __( 'TechArticle Completion', '4wp-seo-helper' ),
+		icon: 'awards',
+		category: 'forwp-seo-techarticle',
+		description: __(
+			'Practice result shown after the steps: what went well, what to improve, what to try next.',
+			'4wp-seo-helper'
+		),
+		attributes: {
+			perfect: { type: 'array', default: [] },
+			optimize: { type: 'array', default: [] },
+			next: { type: 'array', default: [] },
+		},
+		supports: {
+			html: false,
+		},
+		edit: ( props ) => {
+			const blockProps = useBlockProps( {
+				className: 'forwp-seo-techarticle-completion',
+			} );
+			const columns = completionColumns
+				.map( ( [ key, title ] ) => {
+					const items = Array.isArray( props.attributes[ key ] )
+						? props.attributes[ key ]
+						: [];
+					if ( ! items.length ) {
+						return null;
+					}
+					return el(
+						'div',
+						{
+							className:
+								'forwp-seo-techarticle-completion__column forwp-seo-techarticle-completion__column--' +
+								key,
+							key,
+						},
+						el(
+							'h2',
+							{ className: 'forwp-seo-techarticle-completion__title' },
+							title
+						),
+						el(
+							'ul',
+							{ className: 'forwp-seo-techarticle-completion__list' },
+							items.map( ( item, index ) => el( 'li', { key: index }, item ) )
+						)
+					);
+				} )
+				.filter( Boolean );
+
+			return el(
+				'section',
+				blockProps,
+				el(
+					'div',
+					{ className: 'forwp-seo-techarticle-completion__grid' },
+					columns
+				)
+			);
+		},
+		save: () => null,
+	} );
 } )( window.wp );

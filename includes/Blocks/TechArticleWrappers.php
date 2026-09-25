@@ -64,6 +64,13 @@ final class TechArticleWrappers {
 			true
 		);
 
+		wp_register_style(
+			'forwp-seo-techarticle-completion',
+			FORWP_SEO_HELPER_URL . 'assets/css/techarticle-completion.css',
+			[],
+			FORWP_SEO_HELPER_VERSION
+		);
+
 		$wrappers = [
 			self::GOAL_BLOCK    => 'forwp-seo-techarticle-goal',
 			self::CONTEXT_BLOCK => 'forwp-seo-techarticle-context',
@@ -131,6 +138,9 @@ final class TechArticleWrappers {
 						],
 					],
 				],
+				'editor_script'   => self::SCRIPT_HANDLE,
+				'editor_style'    => 'forwp-seo-techarticle-completion',
+				'style'           => 'forwp-seo-techarticle-completion',
 				'render_callback' => [ $this, 'render_completion' ],
 			]
 		);
@@ -138,7 +148,13 @@ final class TechArticleWrappers {
 
 	private function render_wrapper( string $class_name, string $content, array $attributes, string $tag, ?\WP_Block $block = null ): string {
 		if ( '' === trim( $content ) && $block instanceof \WP_Block && ! empty( $block->inner_blocks ) ) {
-			$content = $block->inner_blocks->render();
+			$parts = [];
+			foreach ( $block->inner_blocks as $inner_block ) {
+				if ( $inner_block instanceof \WP_Block ) {
+					$parts[] = $inner_block->render();
+				}
+			}
+			$content = implode( '', $parts );
 		}
 
 		if ( '' === trim( $content ) ) {

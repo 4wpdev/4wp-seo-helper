@@ -1671,6 +1671,39 @@ a.forwp-seo-pane-list__label:hover {
 	overflow: visible;
 }
 
+.forwp-seo-positions-col--pos {
+	min-width: 180px;
+	width: 22%;
+}
+
+.forwp-seo-positions-ours {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.forwp-seo-positions-ours li {
+	display: flex;
+	gap: 6px;
+	line-height: 1.35;
+	margin: 0 0 4px;
+}
+
+.forwp-seo-positions-ours li:last-child {
+	margin-bottom: 0;
+}
+
+.forwp-seo-positions-ours__rank {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+.forwp-seo-positions-ours a {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
 .forwp-seo-positions-add__depth {
 	flex: 0 0 110px;
 }
@@ -1809,6 +1842,10 @@ a.forwp-seo-pane-list__label:hover {
 .forwp-seo-positions-preview__hit {
 	font-size: 13px;
 	line-height: 1.4;
+}
+
+.forwp-seo-positions-preview__body a {
+	overflow-wrap: anywhere;
 }
 
 .forwp-seo-positions-col--ideas {

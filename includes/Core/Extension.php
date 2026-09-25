@@ -16,6 +16,7 @@ use Forwp\SeoHelper\Gsc\Admin as GscAdmin;
 use Forwp\SeoHelper\Gsc\Indexing;
 use Forwp\SeoHelper\Gsc\Module as GscModule;
 use Forwp\SeoHelper\Llms\Generator;
+use Forwp\SeoHelper\FocusKeywords\Module as FocusKeywordsModule;
 use Forwp\SeoHelper\Positions\Module as PositionsModule;
 use Forwp\SeoHelper\Schema\TechArticle;
 use Forwp\SeoHelper\Schema\TechArticleRest;
@@ -55,6 +56,7 @@ final class Extension {
 		CrossPostingModule::get_instance();
 		InventoryModule::get_instance();
 		PositionsModule::get_instance();
+		FocusKeywordsModule::get_instance();
 		TrendsModule::get_instance();
 		GscModule::get_instance();
 		GscAdmin::get_instance(); // Must be initialized for REST API callback

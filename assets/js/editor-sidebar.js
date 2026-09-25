@@ -29,7 +29,10 @@
 				if ( block.name === 'core/code' ) {
 					foundCode = true;
 				}
-				if ( block.name === 'forwp-seo/techarticle-steps' ) {
+				if (
+					block.name === 'forwp-seo/techarticle-steps' ||
+					block.name === 'forwp-seo/techarticle-step'
+				) {
 					foundSteps = true;
 				}
 			} );
@@ -48,14 +51,20 @@
 			>
 				<ul style={ { margin: 0, paddingLeft: '18px' } }>
 					<li>
-						{ hasCode ? '✅ ' : '⚠️ ' }
-						{ __( 'Core Code block', '4wp-seo-helper' ) }
+						{ hasSteps ? '✅ ' : '⚠️ ' }
+						{ __( 'TechArticle Steps block (required)', '4wp-seo-helper' ) }
 					</li>
 					<li>
-						{ hasSteps ? '✅ ' : '⚠️ ' }
-						{ __( 'TechArticle Steps block', '4wp-seo-helper' ) }
+						{ hasCode ? '✅ ' : 'ℹ️ ' }
+						{ __( 'Code sample — WordPress Code block /code (optional)', '4wp-seo-helper' ) }
 					</li>
 				</ul>
+				<p style={ { margin: '8px 0 0', fontSize: '12px', color: '#646970' } }>
+					{ __(
+						'Code is not TechArticle Context. Insert the core Code block (usually inside Steps) to add SoftwareSourceCode to JSON-LD.',
+						'4wp-seo-helper'
+					) }
+				</p>
 			</PluginDocumentSettingPanel>
 		);
 	};

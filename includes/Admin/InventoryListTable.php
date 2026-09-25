@@ -111,6 +111,10 @@ final class InventoryListTable extends \WP_List_Table {
 	}
 
 	protected function column_cb( $item ): string {
+		if ( 'term' === ( $item['object_kind'] ?? '' ) ) {
+			return '<span class="screen-reader-text">' . esc_html__( 'Taxonomy archive', '4wp-seo-helper' ) . '</span>';
+		}
+
 		return sprintf(
 			'<input type="checkbox" name="post_ids[]" value="%s" />',
 			esc_attr( (string) (int) $item['post_id'] )
@@ -524,9 +528,11 @@ final class InventoryListTable extends \WP_List_Table {
 		}
 
 		$post_id = (int) $item['post_id'];
+		$is_term = 'term' === ( $item['object_kind'] ?? '' );
 
-		$actions = [
-			'inline' => sprintf(
+		$actions = [];
+		if ( ! $is_term ) {
+			$actions['inline'] = sprintf(
 				'<button type="button" class="button-link forwp-seo-quick-edit-trigger" aria-label="%1$s" aria-expanded="false">%2$s</button>',
 				esc_attr(
 					sprintf(
@@ -536,11 +542,13 @@ final class InventoryListTable extends \WP_List_Table {
 					)
 				),
 				esc_html__( 'Quick Edit', '4wp-seo-helper' )
-			),
-		];
+			);
+		}
 
-		$edit_link = get_edit_post_link( $post_id );
-		if ( is_string( $edit_link ) ) {
+		$edit_link = $is_term
+			? get_edit_term_link( (int) ( $item['term_id'] ?? 0 ), (string) ( $item['post_type'] ?? '' ) )
+			: get_edit_post_link( $post_id );
+		if ( is_string( $edit_link ) && '' !== $edit_link ) {
 			$actions['edit'] = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( $edit_link ),
@@ -556,11 +564,13 @@ final class InventoryListTable extends \WP_List_Table {
 			);
 		}
 
-		$actions['dynamics'] = sprintf(
-			'<a href="%s">%s</a>',
-			esc_url( DynamicsPage::url_for_post( $post_id ) ),
-			esc_html__( 'Dynamics', '4wp-seo-helper' )
-		);
+		if ( ! $is_term ) {
+			$actions['dynamics'] = sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( DynamicsPage::url_for_post( $post_id ) ),
+				esc_html__( 'Dynamics', '4wp-seo-helper' )
+			);
+		}
 
 		return $output . $this->row_actions( $actions, true );
 	}
@@ -594,11 +604,23 @@ final class InventoryListTable extends \WP_List_Table {
 			]
 		);
 
-		echo '<tr id="forwp-seo-row-' . esc_attr( (string) (int) $item['post_id'] ) . '" class="forwp-seo-inventory-row forwp-seo-inventory-row--draggable';
+		$is_term = 'term' === ( $item['object_kind'] ?? '' );
+		$row_id  = $is_term
+			? 'forwp-seo-term-' . (int) ( $item['term_id'] ?? 0 )
+			: 'forwp-seo-row-' . (int) $item['post_id'];
+		$classes = $is_term
+			? 'forwp-seo-inventory-row'
+			: 'forwp-seo-inventory-row forwp-seo-inventory-row--draggable';
+
+		echo '<tr id="' . esc_attr( $row_id ) . '" class="' . esc_attr( $classes );
 		if ( ! empty( $item['priority'] ) ) {
 			echo ' forwp-seo-inventory-row--queued';
 		}
 		echo '" data-post-id="' . esc_attr( (string) (int) $item['post_id'] ) . '"';
+		if ( $is_term ) {
+			echo ' data-term-id="' . esc_attr( (string) (int) ( $item['term_id'] ?? 0 ) ) . '"';
+			echo ' data-object-kind="term"';
+		}
 		echo ' data-priority="' . esc_attr( (string) $priority ) . '"';
 		echo ' data-priority-group="' . esc_attr( (string) $priority ) . '"';
 		if ( is_string( $data ) ) {
@@ -641,7 +663,7 @@ final class InventoryListTable extends \WP_List_Table {
 				return $this->render_score_cell( $item );
 
 			case 'post_type':
-				return $this->render_post_type_cell( (string) ( $item['post_type'] ?? '' ) );
+				return $this->render_post_type_cell( $item );
 
 			case 'taxonomies':
 				return $this->render_taxonomies_cell( $item );
@@ -804,17 +826,30 @@ final class InventoryListTable extends \WP_List_Table {
 	 * @param array<string, mixed> $item
 	 */
 	private function render_post_id_cell( array $item ): string {
-		$post_id   = (int) ( $item['post_id'] ?? 0 );
+		$is_term   = 'term' === ( $item['object_kind'] ?? '' );
+		$post_id   = $is_term ? (int) ( $item['term_id'] ?? 0 ) : (int) ( $item['post_id'] ?? 0 );
 		$post_type = (string) ( $item['post_type'] ?? '' );
 		$id_html   = esc_html( (string) $post_id );
-		$edit_link = get_edit_post_link( $post_id );
+		$edit_link = $is_term
+			? get_edit_term_link( $post_id, $post_type )
+			: get_edit_post_link( $post_id );
 
 		if ( is_string( $edit_link ) && '' !== $edit_link ) {
 			$id_html = '<a href="' . esc_url( $edit_link ) . '">' . $id_html . '</a>';
 		}
 
 		$icon_html = '';
-		if ( '' !== $post_type ) {
+		if ( $is_term ) {
+			$object = get_taxonomy( $post_type );
+			$label  = $object instanceof \WP_Taxonomy ? (string) $object->labels->singular_name : $post_type;
+			$icon   = 'dashicons-category';
+			$icon_html = sprintf(
+				'<span class="forwp-seo-id-type dashicons %1$s" title="%2$s (%3$s)" aria-label="%2$s"></span>',
+				esc_attr( $icon ),
+				esc_attr( $label ),
+				esc_attr( $post_type )
+			);
+		} elseif ( '' !== $post_type ) {
 			$object = get_post_type_object( $post_type );
 			$label  = $object ? (string) $object->labels->singular_name : $post_type;
 			$icon   = $this->resolve_post_type_icon( $object, $post_type );
@@ -844,9 +879,29 @@ final class InventoryListTable extends \WP_List_Table {
 			'</span>';
 	}
 
-	private function render_post_type_cell( string $post_type ): string {
+	private function render_post_type_cell( $item ): string {
+		if ( is_array( $item ) ) {
+			$post_type = (string) ( $item['post_type'] ?? '' );
+			$is_term   = 'term' === ( $item['object_kind'] ?? '' );
+		} else {
+			$post_type = (string) $item;
+			$is_term   = taxonomy_exists( $post_type ) && ! post_type_exists( $post_type );
+		}
+
 		if ( '' === $post_type ) {
 			return '';
+		}
+
+		if ( $is_term ) {
+			$object = get_taxonomy( $post_type );
+			$label  = $object instanceof \WP_Taxonomy ? (string) $object->labels->singular_name : $post_type;
+
+			return sprintf(
+				'<span class="forwp-seo-post-type-badge" title="%1$s (%2$s)"><span class="forwp-seo-post-type-badge__icon dashicons dashicons-category" aria-hidden="true"></span><span class="forwp-seo-post-type-badge__label">%3$s</span></span>',
+				esc_attr( $label ),
+				esc_attr( $post_type ),
+				esc_html( $label )
+			);
 		}
 
 		$object = get_post_type_object( $post_type );
@@ -1086,15 +1141,18 @@ final class InventoryListTable extends \WP_List_Table {
 	 */
 	private function render_gsc_actions_cell( array $item ): string {
 		$gsc       = GscAdmin::get_instance();
-		$post_id   = (int) ( $item['post_id'] ?? 0 );
-		$published = 'publish' === (string) ( $item['status'] ?? '' );
+		$is_term   = 'term' === ( $item['object_kind'] ?? '' );
+		$object_id = $is_term ? (int) ( $item['term_id'] ?? 0 ) : (int) ( $item['post_id'] ?? 0 );
+		$published = $is_term || 'publish' === (string) ( $item['status'] ?? '' );
 		$ready     = $gsc->is_connected() && '' !== GscAdmin::get_site_property();
-		$disabled  = $published ? '' : ' disabled aria-disabled="true"';
+		$disabled  = ( $published && $object_id > 0 ) ? '' : ' disabled aria-disabled="true"';
+		$id_attr   = $is_term ? 'data-term-id' : 'data-post-id';
 
 		$html = sprintf(
 			'<div class="forwp-seo-gsc-actions">' .
-			'<button type="button" class="button button-small forwp-seo-gsc-refresh" data-post-id="%1$d"%2$s title="%3$s">%4$s</button>',
-			$post_id,
+			'<button type="button" class="button button-small forwp-seo-gsc-refresh" %1$s="%2$d"%3$s title="%4$s">%5$s</button>',
+			esc_attr( $id_attr ),
+			$object_id,
 			$disabled,
 			esc_attr__( 'Fetch latest index status from Google Search Console', '4wp-seo-helper' ),
 			esc_html__( 'Refresh status', '4wp-seo-helper' )
@@ -1102,8 +1160,9 @@ final class InventoryListTable extends \WP_List_Table {
 
 		if ( $ready ) {
 			$html .= sprintf(
-				'<button type="button" class="button button-small forwp-seo-gsc-request-index" data-post-id="%1$d"%2$s title="%4$s">%3$s</button>',
-				$post_id,
+				'<button type="button" class="button button-small forwp-seo-gsc-request-index" %1$s="%2$d"%3$s title="%5$s">%4$s</button>',
+				esc_attr( $id_attr ),
+				$object_id,
 				$disabled,
 				esc_html__( 'Request indexing', '4wp-seo-helper' ),
 				esc_attr__( 'Open Search Console to request indexing for this URL', '4wp-seo-helper' )

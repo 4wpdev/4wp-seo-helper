@@ -97,8 +97,12 @@ final class SlotBag {
 		return $bag;
 	}
 
+	/**
+	 * Steps drive HowTo in TechArticle JSON-LD.
+	 * Code samples are optional SoftwareSourceCode enrichment (not Context).
+	 */
 	public function has_required(): bool {
-		return ! empty( $this->code ) && ! empty( $this->steps );
+		return ! empty( $this->steps );
 	}
 
 	/**

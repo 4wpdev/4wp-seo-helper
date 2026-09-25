@@ -57,6 +57,43 @@ final class Target {
 	}
 
 	/**
+	 * Path after the host, for matching local vs live URLs of the same page.
+	 */
+	public static function path_key( string $url ): string {
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) ) {
+			return '';
+		}
+
+		$path = (string) ( $parts['path'] ?? '/' );
+		$path = untrailingslashit( $path );
+		if ( '' === $path ) {
+			$path = '/';
+		}
+
+		return strtolower( $path );
+	}
+
+	/**
+	 * Host + path for admin lists (not domain-only).
+	 */
+	public static function link_label( string $url ): string {
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) ) {
+			return $url;
+		}
+
+		$host = strtolower( (string) ( $parts['host'] ?? '' ) );
+		$host = preg_replace( '/^www\./', '', $host ) ?? $host;
+		$path = (string) ( $parts['path'] ?? '' );
+		if ( '/' === $path ) {
+			$path = '';
+		}
+
+		return $host . $path;
+	}
+
+	/**
 	 * @return array{property: string, host: string}
 	 */
 	public static function snapshot(): array {

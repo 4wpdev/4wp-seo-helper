@@ -17,7 +17,7 @@
 	const { PluginSidebar, PluginSidebarMoreMenuItem } = editorApi;
 	const { createBlock } = wp.blocks || {};
 	const { useSelect } = wp.data;
-	const { useState, useEffect } = wp.element;
+	const { useState, useEffect, Fragment } = wp.element;
 	const { PanelBody, Button, TextareaControl, Spinner, Notice } = wp.components;
 	const { __ } = wp.i18n;
 	const chartBar = wp.icons ? wp.icons.chartBar : null;
@@ -361,7 +361,8 @@
 			}
 		};
 
-		const isValid = serverTechArticle?.valid || ( hasCode && hasSteps );
+		// Steps required for JSON-LD; Code (`core/code`) is optional enrichment — not TechArticle Context.
+		const isValid = serverTechArticle?.valid || hasSteps;
 		const jsonPreview = serverTechArticle?.schema && Object.keys( serverTechArticle.schema ).length
 			? serverTechArticle.schema
 			: {
@@ -448,17 +449,36 @@
 				)
 			)
 			: el(
-				'ul',
-				{ style: { margin: 0, paddingLeft: '18px' } },
+				Fragment,
+				null,
 				el(
-					'li',
-					null,
-					( hasCode ? '✅ ' : '⚠️ ' ) + __( 'Core Code block', '4wp-seo-helper' )
+					'ul',
+					{ style: { margin: 0, paddingLeft: '18px' } },
+					el(
+						'li',
+						null,
+						( hasSteps ? '✅ ' : '⚠️ ' ) + __( 'TechArticle Steps block (required)', '4wp-seo-helper' )
+					),
+					el(
+						'li',
+						null,
+						( hasCode ? '✅ ' : 'ℹ️ ' ) +
+							__( 'Code sample — WordPress Code block /code (optional)', '4wp-seo-helper' )
+					)
 				),
 				el(
-					'li',
-					null,
-					( hasSteps ? '✅ ' : '⚠️ ' ) + __( 'TechArticle Steps block', '4wp-seo-helper' )
+					'p',
+					{
+						style: {
+							margin: '8px 0 0',
+							fontSize: '12px',
+							color: '#646970',
+						},
+					},
+					__(
+						'Code is not TechArticle Context. Insert the core Code block (usually inside Steps) to add SoftwareSourceCode to JSON-LD.',
+						'4wp-seo-helper'
+					)
 				)
 			);
 

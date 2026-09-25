@@ -144,21 +144,19 @@ final class TechArticle {
 		return (bool) get_post_meta( $post_id, self::LEGACY_META_KEY, true );
 	}
 
+	/**
+	 * TechArticle Steps is required for JSON-LD.
+	 * WordPress Code (`core/code`) is optional — not TechArticle Context.
+	 */
 	private function has_required_blocks( array $blocks ): bool {
-		$has_code  = false;
-		$has_steps = false;
-
 		foreach ( $blocks as $block ) {
 			$name = $block['blockName'] ?? '';
-			if ( 'core/code' === $name ) {
-				$has_code = true;
-			}
 			if ( self::STEPS_BLOCK === $name || self::STEP_BLOCK === $name ) {
-				$has_steps = true;
+				return true;
 			}
 		}
 
-		return $has_code && $has_steps;
+		return false;
 	}
 
 	private function build_schema( \WP_Post $post ): array {
@@ -200,7 +198,7 @@ final class TechArticle {
 			$software_code = $this->extract_software_code( $flat );
 			$steps         = $this->extract_steps( $flat );
 
-			if ( empty( $software_code ) || empty( $steps ) ) {
+			if ( empty( $steps ) ) {
 				return [];
 			}
 
@@ -253,15 +251,11 @@ final class TechArticle {
 			}
 		}
 
-		$has_part = array_merge(
-			$software_code,
-			[
-				[
-					'@type' => 'HowTo',
-					'step'  => $steps,
-				],
-			]
-		);
+		$has_part = $software_code;
+		$has_part[] = [
+			'@type' => 'HowTo',
+			'step'  => $steps,
+		];
 
 		$schema = [
 			'@context'      => 'https://schema.org',

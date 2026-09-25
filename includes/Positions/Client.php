@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Client {
 	public const PAGE_SIZE     = 10;
-	public const MAX_PAGES     = 3;
+	public const MAX_PAGES     = 5;
 	public const DEFAULT_PAGES = 1;
 
 	/**
@@ -437,6 +437,32 @@ final class Client {
 		}
 
 		return $existing;
+	}
+
+	/**
+	 * @param list<array{rank?: int, link?: string, ours?: bool}> $organic
+	 * @return list<array{rank: int, path: string, label: string}>
+	 */
+	public static function ours_hits( array $organic ): array {
+		$out = [];
+		foreach ( $organic as $row ) {
+			if ( empty( $row['ours'] ) ) {
+				continue;
+			}
+			$rank = (int) ( $row['rank'] ?? 0 );
+			$link = (string) ( $row['link'] ?? '' );
+			if ( $rank < 1 || '' === $link ) {
+				continue;
+			}
+			$out[] = [
+				'rank'  => $rank,
+				'path'  => Target::path_key( $link ),
+				'label' => Target::link_label( $link ),
+				'link'  => $link,
+			];
+		}
+
+		return $out;
 	}
 
 	/**

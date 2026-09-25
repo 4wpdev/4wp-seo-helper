@@ -13,6 +13,7 @@ Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 ## Version 2.4.1
 
 - **4WP Drive** — TechArticle wraps for document import: Goal, Context, Steps, Common mistakes. Activate this plugin so Drive Patterns can list the wraps. [4WP Drive on WordPress.org](https://wordpress.org/plugins/4wp-drive/).
+- **Focus Keywords** — submenu of unique Inventory keyphrases, usage (page/post/archive), SERP position from Positions when the URL was recorded for that query, and keyword P1–P3 lanes.
 
 ## Version 2.4.0
 

@@ -6,6 +6,7 @@
 namespace Forwp\SeoHelper\Admin;
 
 use Forwp\SeoHelper\Inventory\ExcludedPostTypes;
+use Forwp\SeoHelper\Inventory\ExcludedTaxonomies;
 use Forwp\SeoHelper\Inventory\PostTypeDiscovery;
 use Forwp\SeoHelper\Inventory\TaxonomyDiscovery;
 use Forwp\SeoHelper\Inventory\PriorityLabels;
@@ -74,13 +75,13 @@ final class InventoryPage {
 
 		if ( isset( $_GET['forwp_type_excluded'] ) ) {
 			$slug  = sanitize_key( wp_unslash( (string) $_GET['forwp_type_excluded'] ) );
-			$label = self::post_type_label( $slug );
+			$label = self::object_type_label( $slug );
 			$undo  = self::include_type_url( $slug );
 			printf(
 				'<div class="notice notice-success is-dismissible"><p>%s %s</p></div>',
 				esc_html(
 					sprintf(
-						/* translators: %s: post type label */
+						/* translators: %s: post type or taxonomy label */
 						__( '“%s” is excluded from SEO Inventory. This is saved for next time.', '4wp-seo-helper' ),
 						$label
 					)
@@ -95,9 +96,9 @@ final class InventoryPage {
 				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
 				esc_html(
 					sprintf(
-						/* translators: %s: post type label */
+						/* translators: %s: post type or taxonomy label */
 						__( '“%s” is shown in SEO Inventory again.', '4wp-seo-helper' ),
-						self::post_type_label( $slug )
+						self::object_type_label( $slug )
 					)
 				)
 			);
@@ -152,9 +153,19 @@ final class InventoryPage {
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		$taxonomy_rows = TaxonomyDiscovery::get_labeled(
-			'' === $filters['post_type'] ? [] : [ $filters['post_type'] ]
-		);
+		$type_taxonomy = TaxonomyDiscovery::taxonomy_from_type_filter( $filters['post_type'] );
+		$taxonomy_rows = '' !== $type_taxonomy
+			? array_values(
+				array_filter(
+					TaxonomyDiscovery::get_archive_labeled(),
+					static function ( array $row ) use ( $type_taxonomy ): bool {
+						return $row['slug'] === $type_taxonomy;
+					}
+				)
+			)
+			: TaxonomyDiscovery::get_labeled(
+				'' === $filters['post_type'] ? [] : [ $filters['post_type'] ]
+			);
 		$taxonomy_slugs = array_column( $taxonomy_rows, 'slug' );
 		if ( '' !== $filters['taxonomy'] && ! in_array( $filters['taxonomy'], $taxonomy_slugs, true ) ) {
 			$filters['taxonomy'] = '';
@@ -285,12 +296,27 @@ final class InventoryPage {
 				<div class="tablenav top forwp-seo-inventory__toolbar">
 					<div class="alignleft actions">
 						<select name="<?php echo esc_attr( Menu::INVENTORY_POST_TYPE_ARG ); ?>">
-							<option value=""><?php esc_html_e( 'All post types', '4wp-seo-helper' ); ?></option>
+							<option value=""><?php esc_html_e( 'All types', '4wp-seo-helper' ); ?></option>
+							<optgroup label="<?php esc_attr_e( 'Content', '4wp-seo-helper' ); ?>">
 							<?php foreach ( PostTypeDiscovery::get_labeled() as $type ) : ?>
 								<option value="<?php echo esc_attr( $type['slug'] ); ?>" <?php selected( $filters['post_type'], $type['slug'] ); ?>>
 									<?php echo esc_html( $type['label'] . ' (' . $type['slug'] . ')' ); ?>
 								</option>
 							<?php endforeach; ?>
+							</optgroup>
+							<?php $archive_types = TaxonomyDiscovery::get_archive_labeled(); ?>
+							<?php if ( $archive_types ) : ?>
+							<optgroup label="<?php esc_attr_e( 'Taxonomy archives', '4wp-seo-helper' ); ?>">
+							<?php foreach ( $archive_types as $taxonomy ) : ?>
+								<?php
+								$type_value = TaxonomyDiscovery::type_slug( $taxonomy['slug'] );
+								?>
+								<option value="<?php echo esc_attr( $type_value ); ?>" <?php selected( $filters['post_type'], $type_value ); ?>>
+									<?php echo esc_html( $taxonomy['label'] ); ?>
+								</option>
+							<?php endforeach; ?>
+							</optgroup>
+							<?php endif; ?>
 						</select>
 						<select name="<?php echo esc_attr( Menu::INVENTORY_TAXONOMY_ARG ); ?>" onchange="this.form.submit()">
 							<option value=""><?php esc_html_e( 'All taxonomies', '4wp-seo-helper' ); ?></option>
@@ -552,7 +578,10 @@ final class InventoryPage {
 		check_admin_referer( 'forwp_seo_inventory_exclude_type' );
 
 		$slug = self::get_requested_post_type();
-		if ( '' !== $slug ) {
+		$tax  = TaxonomyDiscovery::taxonomy_from_type_filter( $slug );
+		if ( '' !== $tax ) {
+			ExcludedTaxonomies::add( $tax );
+		} elseif ( '' !== $slug ) {
 			ExcludedPostTypes::add( $slug );
 		}
 
@@ -579,7 +608,10 @@ final class InventoryPage {
 		check_admin_referer( 'forwp_seo_inventory_include_type' );
 
 		$slug = self::get_requested_post_type();
-		if ( '' !== $slug ) {
+		$tax  = TaxonomyDiscovery::taxonomy_from_type_filter( $slug );
+		if ( '' !== $tax ) {
+			ExcludedTaxonomies::remove( $tax );
+		} elseif ( '' !== $slug ) {
 			ExcludedPostTypes::remove( $slug );
 		}
 
@@ -625,6 +657,20 @@ final class InventoryPage {
 		);
 	}
 
+	private static function object_type_label( string $slug ): string {
+		$taxonomy = TaxonomyDiscovery::taxonomy_from_type_filter( $slug );
+		if ( '' !== $taxonomy ) {
+			$object = get_taxonomy( $taxonomy );
+			if ( $object instanceof \WP_Taxonomy ) {
+				return (string) $object->labels->name;
+			}
+
+			return $taxonomy;
+		}
+
+		return self::post_type_label( $slug );
+	}
+
 	private static function post_type_label( string $slug ): string {
 		$object = get_post_type_object( $slug );
 		if ( $object instanceof \WP_Post_Type ) {
@@ -635,22 +681,30 @@ final class InventoryPage {
 	}
 
 	private static function render_excluded_types_note(): void {
-		$excluded = ExcludedPostTypes::get();
-		if ( [] === $excluded ) {
+		$excluded_types = ExcludedPostTypes::get();
+		$excluded_tax   = ExcludedTaxonomies::get();
+		if ( [] === $excluded_types && [] === $excluded_tax ) {
 			return;
 		}
 
 		$parts = [];
-		foreach ( $excluded as $slug ) {
+		foreach ( $excluded_types as $slug ) {
 			$parts[] = sprintf(
 				'<a href="%1$s">%2$s</a>',
 				esc_url( self::include_type_url( $slug ) ),
 				esc_html( self::post_type_label( $slug ) )
 			);
 		}
+		foreach ( $excluded_tax as $slug ) {
+			$parts[] = sprintf(
+				'<a href="%1$s">%2$s</a>',
+				esc_url( self::include_type_url( TaxonomyDiscovery::type_slug( $slug ) ) ),
+				esc_html( self::object_type_label( TaxonomyDiscovery::type_slug( $slug ) ) )
+			);
+		}
 
 		echo '<p class="forwp-seo-inventory__excluded">';
-		echo esc_html__( 'Excluded post types:', '4wp-seo-helper' );
+		echo esc_html__( 'Excluded from inventory:', '4wp-seo-helper' );
 		echo ' ';
 		echo wp_kses_post( implode( ', ', $parts ) );
 		echo ' — ';

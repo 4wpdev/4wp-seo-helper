@@ -54,43 +54,67 @@ final class Repository {
 
 		$has_post_filters = '' !== $missing || null !== $min_score || null !== $max_score || $sort_by_priority || $has_priority_filter;
 
-		$query_args = [
-			'post_type'              => $this->resolve_post_types( $post_type ),
-			'post_status'            => $status ?: 'publish',
-			'posts_per_page'         => $has_post_filters ? -1 : $per_page,
-			'paged'                  => $has_post_filters ? 1 : $page,
-			'orderby'                => 'modified',
-			'order'                  => 'DESC',
-			'ignore_sticky_posts'    => true,
-			'no_found_rows'          => $has_post_filters,
-			'update_post_meta_cache' => false,
-			'update_post_term_cache' => true,
-		];
+		$tax_type     = TaxonomyDiscovery::taxonomy_from_type_filter( $post_type );
+		$include_posts = '' === $tax_type;
+		$include_terms = '' === $post_type || '' !== $tax_type;
+		$merge_in_php  = $has_post_filters || $include_terms;
 
-		if ( $post_id > 0 ) {
-			$query_args['post__in']      = [ $post_id ];
-			$query_args['posts_per_page'] = 1;
-			$query_args['paged']         = 1;
-		} elseif ( '' !== $search ) {
-			$query_args['s'] = $search;
-		}
-
-		$this->prepare_language_query( $query_args, $lang );
-		$this->prepare_taxonomy_query( $query_args, $taxonomy, $term_id, $post_type );
-
-		$query   = $this->run_query( $query_args, $lang );
 		$records = [];
 
-		foreach ( $query->posts as $post ) {
-			if ( ! $post instanceof WP_Post ) {
-				continue;
+		if ( $include_posts ) {
+			$query_args = [
+				'post_type'              => $this->resolve_post_types( $post_type ),
+				'post_status'            => $status ?: 'publish',
+				'posts_per_page'         => $merge_in_php ? -1 : $per_page,
+				'paged'                  => $merge_in_php ? 1 : $page,
+				'orderby'                => 'modified',
+				'order'                  => 'DESC',
+				'ignore_sticky_posts'    => true,
+				'no_found_rows'          => $merge_in_php,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => true,
+			];
+
+			if ( $post_id > 0 ) {
+				$query_args['post__in']       = [ $post_id ];
+				$query_args['posts_per_page'] = 1;
+				$query_args['paged']          = 1;
+			} elseif ( '' !== $search ) {
+				$query_args['s'] = $search;
 			}
 
-			$record = $this->build_record( $post );
-			if ( null === $record ) {
-				continue;
+			$this->prepare_language_query( $query_args, $lang );
+			$this->prepare_taxonomy_query( $query_args, $taxonomy, $term_id, $post_type );
+
+			$query = $this->run_query( $query_args, $lang );
+
+			foreach ( $query->posts as $post ) {
+				if ( ! $post instanceof WP_Post ) {
+					continue;
+				}
+
+				$record = $this->build_record( $post );
+				if ( null === $record ) {
+					continue;
+				}
+
+				$records[] = $record;
 			}
 
+			$sql_total = (int) $query->found_posts;
+		} else {
+			$sql_total = 0;
+		}
+
+		if ( $include_terms && $post_id <= 0 ) {
+			$records = array_merge(
+				$records,
+				$this->query_term_records( $tax_type, $taxonomy, $term_id, $search, $lang )
+			);
+		}
+
+		$filtered = [];
+		foreach ( $records as $record ) {
 			if ( '' !== $missing && ! $this->scorer->matches_missing_filter( $record['missing'], $missing ) ) {
 				continue;
 			}
@@ -103,8 +127,9 @@ final class Repository {
 				continue;
 			}
 
-			$records[] = $record;
+			$filtered[] = $record;
 		}
+		$records = $filtered;
 
 		if ( $sort_by_priority && 'gsc_index_status' !== $orderby ) {
 			$records = ( new PriorityQueue() )->sort_records( $records );
@@ -130,12 +155,12 @@ final class Repository {
 			);
 		}
 
-		if ( $has_post_filters ) {
-			$total = count( $records );
+		if ( $merge_in_php ) {
+			$total  = count( $records );
 			$offset = ( $page - 1 ) * $per_page;
 			$items  = array_slice( $records, $offset, $per_page );
 		} else {
-			$total = (int) $query->found_posts;
+			$total = $sql_total;
 			$items = $records;
 		}
 
@@ -433,6 +458,8 @@ final class Repository {
 
 		$record = [
 			'post_id'            => $post->ID,
+			'term_id'            => 0,
+			'object_kind'        => 'post',
 			'lang'               => $provider->get_post_language( $post->ID ),
 			'post_type'          => $post->post_type,
 			'status'             => $post->post_status,
@@ -469,6 +496,149 @@ final class Repository {
 		$record['taxonomies_text'] = TaxonomyDiscovery::format_plain( $record['taxonomies'] );
 
 		return array_merge( $record, Indexing::inventory_fields( $post->ID ) );
+	}
+
+	/**
+	 * @return list<array<string, mixed>>
+	 */
+	private function query_term_records( string $type_taxonomy, string $filter_taxonomy, int $term_id, string $search, string $lang ): array {
+		unset( $lang );
+
+		$slugs = [];
+		if ( '' !== $type_taxonomy ) {
+			$slugs[] = $type_taxonomy;
+		} elseif ( '' !== $filter_taxonomy && TaxonomyDiscovery::is_inventory_archive( $filter_taxonomy ) ) {
+			$slugs[] = $filter_taxonomy;
+		} else {
+			foreach ( TaxonomyDiscovery::get_archive_labeled() as $row ) {
+				$slugs[] = $row['slug'];
+			}
+		}
+
+		$records = [];
+		foreach ( array_unique( $slugs ) as $slug ) {
+			foreach ( TaxonomyDiscovery::get_inventory_terms( $slug, $search, $term_id ) as $term ) {
+				$record = $this->build_term_record( $term );
+				if ( null !== $record ) {
+					$records[] = $record;
+				}
+			}
+		}
+
+		return $records;
+	}
+
+	/**
+	 * @return array<string, mixed>|null
+	 */
+	private function build_term_record( \WP_Term $term ): ?array {
+		$link = get_term_link( $term );
+		$url  = is_wp_error( $link ) ? '' : (string) $link;
+		if ( '' === $url ) {
+			return null;
+		}
+
+		$adapter = SeoMetaRegistry::get_active();
+		$meta    = [
+			'title'           => '',
+			'description'     => '',
+			'focus_keyword'   => '',
+			'canonical'       => '',
+			'noindex'         => false,
+			'og_title'        => '',
+			'og_description'  => '',
+			'og_image'        => '',
+		];
+		if ( $adapter instanceof YoastAdapter ) {
+			$meta = $adapter->read_term( $term );
+		}
+
+		$phrases = FocusKeyphrases::parse( (string) ( $meta['focus_keyword'] ?? '' ) );
+		$meta['focus_keyphrases'] = $phrases;
+		$meta['focus_keyword']    = FocusKeyphrases::primary( $phrases );
+
+		$completeness = $this->scorer->score( $meta );
+		$seo_title    = (string) ( $meta['title'] ?? '' );
+		$seo_desc     = (string) ( $meta['description'] ?? '' );
+		$title_auto   = false;
+		$desc_auto    = false;
+		if ( $adapter instanceof YoastAdapter ) {
+			$presented  = $adapter->present_term( $term, $meta );
+			$seo_title  = (string) $presented['title'];
+			$seo_desc   = (string) $presented['description'];
+			$title_auto = ! empty( $presented['title_is_auto'] ) && '' !== $seo_title;
+			$desc_auto  = ! empty( $presented['description_is_auto'] ) && '' !== $seo_desc;
+		}
+
+		$tax_object = get_taxonomy( $term->taxonomy );
+		$type_label = $tax_object instanceof \WP_Taxonomy
+			? (string) $tax_object->labels->singular_name
+			: $term->taxonomy;
+
+		$parent_groups = [];
+		if ( $term->parent > 0 ) {
+			$parent = get_term( (int) $term->parent, $term->taxonomy );
+			if ( $parent instanceof \WP_Term ) {
+				$parent_groups[] = [
+					'taxonomy' => $term->taxonomy,
+					'label'    => $type_label,
+					'terms'    => [
+						[
+							'id'   => (int) $parent->term_id,
+							'name' => (string) $parent->name,
+							'slug' => (string) $parent->slug,
+						],
+					],
+				];
+			}
+		}
+
+		$record = [
+			'post_id'                  => 0,
+			'term_id'                  => (int) $term->term_id,
+			'object_kind'              => 'term',
+			'lang'                     => '',
+			'post_type'                => $term->taxonomy,
+			'status'                   => 'publish',
+			'wp_title'                 => (string) $term->name,
+			'url'                      => $url,
+			'modified_gmt'             => '',
+			'seo_title'                => $seo_title,
+			'seo_title_raw'            => (string) ( $meta['title'] ?? '' ),
+			'seo_title_is_auto'        => $title_auto,
+			'meta_description'         => $seo_desc,
+			'meta_description_raw'     => (string) ( $meta['description'] ?? '' ),
+			'meta_description_is_auto' => $desc_auto,
+			'focus_keyword'            => $meta['focus_keyword'],
+			'focus_keyphrases'         => $phrases,
+			'focus_keyphrases_text'    => FocusKeyphrases::format( $phrases ),
+			'canonical'                => $meta['canonical'],
+			'noindex'                  => (bool) $meta['noindex'],
+			'og_title'                 => $meta['og_title'],
+			'og_description'           => $meta['og_description'],
+			'og_image'                 => $meta['og_image'],
+			'completeness'             => $completeness['score'],
+			'seo_score'                => null,
+			'seo_score_label'          => '',
+			'readability_score'        => null,
+			'seo_no_focus'             => '' === (string) $meta['focus_keyword'],
+			'missing'                  => $completeness['missing'],
+			'translation_group'        => [],
+			'seo_adapter'              => $adapter->get_id(),
+			'multilingual'             => '',
+			'priority'                 => null,
+			'queue_position'           => null,
+			'taxonomies'               => $parent_groups,
+			'gsc_coverage'             => '',
+			'gsc_verdict'              => '',
+			'gsc_last_crawl'           => '',
+			'gsc_index_requested_at'   => 0,
+			'gsc_inspect_link'         => '',
+			'gsc_inspect_error'        => '',
+		];
+		$record['taxonomies_text'] = TaxonomyDiscovery::format_plain( $record['taxonomies'] );
+
+		return array_merge( $record, Indexing::inventory_fields( (int) $term->term_id, 'term' ) );
 	}
 
 	/**

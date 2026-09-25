@@ -98,6 +98,115 @@ final class TaxonomyDiscovery {
 		return $clean;
 	}
 
+	public const TYPE_PREFIX = 'taxonomy-';
+
+	public static function type_slug( string $taxonomy ): string {
+		$taxonomy = sanitize_key( $taxonomy );
+
+		return '' === $taxonomy ? '' : self::TYPE_PREFIX . $taxonomy;
+	}
+
+	public static function taxonomy_from_type_filter( string $type ): string {
+		$type = sanitize_key( $type );
+		if ( ! str_starts_with( $type, self::TYPE_PREFIX ) ) {
+			return '';
+		}
+
+		$taxonomy = sanitize_key( substr( $type, strlen( self::TYPE_PREFIX ) ) );
+
+		return taxonomy_exists( $taxonomy ) ? $taxonomy : '';
+	}
+
+	/**
+	 * Public taxonomy archives that have a front-end URL (like a page).
+	 *
+	 * @return list<array{slug: string, label: string, hierarchical: bool}>
+	 */
+	public static function get_archive_labeled(): array {
+		$excluded = array_fill_keys( ExcludedTaxonomies::get(), true );
+		$rows     = [];
+		foreach ( self::get_discovered_archive_labeled() as $row ) {
+			if ( isset( $excluded[ $row['slug'] ] ) ) {
+				continue;
+			}
+			$rows[] = $row;
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Public archive taxonomies before the saved user exclude list.
+	 *
+	 * @return list<array{slug: string, label: string, hierarchical: bool}>
+	 */
+	public static function get_discovered_archive_labeled(): array {
+		$rows = [];
+		foreach ( self::get_labeled() as $row ) {
+			if ( self::is_public_archive( $row['slug'] ) ) {
+				$rows[] = $row;
+			}
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public static function get_discovered_archive_slugs(): array {
+		return array_column( self::get_discovered_archive_labeled(), 'slug' );
+	}
+
+	/**
+	 * All archive taxonomies, including those the user has excluded.
+	 *
+	 * @return list<array{slug: string, label: string, hierarchical: bool, excluded: bool}>
+	 */
+	public static function get_manageable_archive_labeled(): array {
+		$excluded = array_fill_keys( ExcludedTaxonomies::get(), true );
+		$items    = [];
+
+		foreach ( self::get_discovered_archive_labeled() as $row ) {
+			$row['excluded'] = isset( $excluded[ $row['slug'] ] );
+			$items[]         = $row;
+		}
+
+		return $items;
+	}
+
+	public static function is_inventory_archive( string $taxonomy ): bool {
+		$taxonomy = sanitize_key( $taxonomy );
+		if ( ! self::is_public_archive( $taxonomy ) ) {
+			return false;
+		}
+
+		return ! in_array( $taxonomy, ExcludedTaxonomies::get(), true );
+	}
+
+	public static function is_public_archive( string $taxonomy ): bool {
+		$taxonomy = sanitize_key( $taxonomy );
+		if ( '' === $taxonomy || ! taxonomy_exists( $taxonomy ) ) {
+			return false;
+		}
+
+		$object = get_taxonomy( $taxonomy );
+		if ( ! $object instanceof \WP_Taxonomy ) {
+			return false;
+		}
+
+		if ( empty( $object->public ) ) {
+			return false;
+		}
+
+		$viewable = ! empty( $object->publicly_queryable );
+		if ( ! $viewable && is_array( $object->rewrite ) && ! empty( $object->rewrite['slug'] ) ) {
+			$viewable = true;
+		}
+
+		return (bool) apply_filters( 'forwp_seo_inventory_taxonomy_is_viewable', $viewable, $object );
+	}
+
 	/**
 	 * Terms for a taxonomy (used in inventory filter).
 	 *
@@ -134,6 +243,48 @@ final class TaxonomyDiscovery {
 				'slug'   => (string) $term->slug,
 				'parent' => (int) $term->parent,
 			];
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Public archive terms for inventory rows (category pages, tag pages, …).
+	 *
+	 * @return list<\WP_Term>
+	 */
+	public static function get_inventory_terms( string $taxonomy, string $search = '', int $term_id = 0 ): array {
+		$taxonomy = sanitize_key( $taxonomy );
+		if ( '' === $taxonomy || ! self::is_inventory_archive( $taxonomy ) ) {
+			return [];
+		}
+
+		$args = [
+			'taxonomy'   => $taxonomy,
+			'hide_empty' => false,
+			'orderby'    => 'name',
+			'order'      => 'ASC',
+			'number'     => 2000,
+		];
+
+		if ( $term_id > 0 ) {
+			$args['include'] = [ $term_id ];
+		}
+
+		if ( '' !== $search ) {
+			$args['search'] = $search;
+		}
+
+		$terms = get_terms( $args );
+		if ( ! is_array( $terms ) ) {
+			return [];
+		}
+
+		$out = [];
+		foreach ( $terms as $term ) {
+			if ( $term instanceof \WP_Term ) {
+				$out[] = $term;
+			}
 		}
 
 		return $out;

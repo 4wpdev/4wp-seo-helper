@@ -145,6 +145,87 @@ final class YoastAdapter implements AdapterInterface {
 		];
 	}
 
+	/**
+	 * Yoast fields stored on a taxonomy term (archive page).
+	 *
+	 * @return array{
+	 *     title: string,
+	 *     description: string,
+	 *     focus_keyword: string,
+	 *     canonical: string,
+	 *     noindex: bool,
+	 *     og_title: string,
+	 *     og_description: string,
+	 *     og_image: string
+	 * }
+	 */
+	public function read_term( \WP_Term $term ): array {
+		$meta = [];
+		if ( class_exists( '\WPSEO_Taxonomy_Meta' ) ) {
+			$stored = \WPSEO_Taxonomy_Meta::get_term_meta( $term, $term->taxonomy );
+			if ( is_array( $stored ) ) {
+				$meta = $stored;
+			}
+		}
+
+		if ( [] === $meta ) {
+			$all = get_option( 'wpseo_taxonomy_meta', [] );
+			if ( is_array( $all ) ) {
+				$meta = $all[ $term->taxonomy ][ $term->term_id ] ?? [];
+			}
+		}
+
+		if ( ! is_array( $meta ) ) {
+			$meta = [];
+		}
+
+		$noindex = $meta['wpseo_noindex'] ?? '';
+
+		return [
+			'title'           => (string) ( $meta['wpseo_title'] ?? '' ),
+			'description'     => (string) ( $meta['wpseo_desc'] ?? '' ),
+			'focus_keyword'   => (string) ( $meta['wpseo_focuskw'] ?? '' ),
+			'canonical'       => (string) ( $meta['wpseo_canonical'] ?? '' ),
+			'noindex'         => 'noindex' === $noindex || '1' === (string) $noindex,
+			'og_title'        => (string) ( $meta['wpseo_opengraph-title'] ?? '' ),
+			'og_description'  => (string) ( $meta['wpseo_opengraph-description'] ?? '' ),
+			'og_image'        => (string) ( $meta['wpseo_opengraph-image'] ?? '' ),
+		];
+	}
+
+	/**
+	 * @return array{title: string, title_is_auto: bool, description: string, description_is_auto: bool}
+	 */
+	public function present_term( \WP_Term $term, array $raw ): array {
+		$title_raw = trim( (string) ( $raw['title'] ?? '' ) );
+		$desc_raw  = trim( (string) ( $raw['description'] ?? '' ) );
+
+		$title = $title_raw;
+		$desc  = $desc_raw;
+		if ( class_exists( '\WPSEO_Replace_Vars' ) ) {
+			$replacer = new \WPSEO_Replace_Vars();
+			if ( '' !== $title ) {
+				$replaced = $replacer->replace( $title, $term );
+				$title    = is_string( $replaced ) ? trim( $replaced ) : $title;
+			}
+			if ( '' !== $desc ) {
+				$replaced = $replacer->replace( $desc, $term );
+				$desc     = is_string( $replaced ) ? trim( $replaced ) : $desc;
+			}
+		}
+
+		if ( '' === $title ) {
+			$title = (string) $term->name;
+		}
+
+		return [
+			'title'               => $title,
+			'title_is_auto'       => '' === $title_raw || false !== strpos( $title_raw, '%%' ),
+			'description'         => $desc,
+			'description_is_auto' => '' === $desc_raw || false !== strpos( $desc_raw, '%%' ),
+		];
+	}
+
 	public static function rebuild_indexable( int $post_id ): bool {
 		if ( $post_id <= 0 || ! defined( 'WPSEO_VERSION' ) || ! function_exists( 'YoastSEO' ) ) {
 			return false;

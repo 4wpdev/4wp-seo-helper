@@ -54,6 +54,9 @@ final class TrendsPage {
 		echo '</span><span class="forwp-seo-admin-heading__text">';
 		echo esc_html__( 'Google Trends', '4wp-seo-helper' );
 		echo '</span></h1>';
+		echo '<p class="forwp-seo-admin-lead">';
+		echo esc_html__( 'Each row is a Google Trends query in a region. A new file adds another date column — existing rows are never overwritten. Language is only a filter, not part of the key.', '4wp-seo-helper' );
+		echo '</p>';
 
 		if ( is_array( $notice ) ) {
 			delete_transient( 'forwp_trends_notice_' . get_current_user_id() );
@@ -66,11 +69,6 @@ final class TrendsPage {
 		}
 
 		echo '<div class="forwp-seo-admin-app forwp-seo-trends-app">';
-
-		echo '<div class="forwp-seo-trends-intro">';
-		echo '<h2>' . esc_html__( 'Query interest over time', '4wp-seo-helper' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Each row is a Google Trends query in a region. A new file adds another date column — existing rows are never overwritten. Language is only a filter, not part of the key.', '4wp-seo-helper' ) . '</p>';
-		echo '</div>';
 
 		self::render_upload( is_array( $preview ) ? $preview : null );
 		self::render_filters( $lang_filter, $region_filter, $search, $languages, $regions );

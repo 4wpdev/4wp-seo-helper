@@ -58,7 +58,7 @@ final class TechArticleMarkup {
 
 		$faq = $sections['faq'] ?? [];
 		if ( is_array( $faq ) && $faq !== [] ) {
-			$parts[] = self::build_faq_block( $faq );
+			$parts[] = self::build_faq_block( $faq, $data );
 		}
 
 		$completion = $sections['completion'] ?? [];
@@ -286,24 +286,67 @@ final class TechArticleMarkup {
 	}
 
 	/**
-	 * @param array<int, string> $items List item strings.
+	 * @param array<int, string> $items List item HTML strings.
 	 */
 	private static function build_list_block( array $items ): string {
-		$list = '';
+		$inners = [];
 		foreach ( $items as $item ) {
 			if ( ! is_string( $item ) || trim( $item ) === '' ) {
 				continue;
 			}
-			$list .= '<li>' . wp_kses_post( $item ) . '</li>';
+			$inners[] = wp_kses_post( $item );
 		}
 
-		if ( $list === '' ) {
+		return self::serialize_list( $inners );
+	}
+
+	/**
+	 * core/list with core/list-item children so the editor accepts the markup.
+	 *
+	 * @param array<int, string> $inners Inner HTML for each <li>, already sanitized.
+	 */
+	private static function serialize_list( array $inners ): string {
+		$items = [];
+		foreach ( $inners as $inner ) {
+			if ( ! is_string( $inner ) || '' === trim( $inner ) ) {
+				continue;
+			}
+			$li      = '<li>' . $inner . '</li>';
+			$items[] = [
+				'blockName'    => 'core/list-item',
+				'attrs'        => [],
+				'innerBlocks'  => [],
+				'innerHTML'    => $li,
+				'innerContent' => [ $li ],
+			];
+		}
+
+		if ( $items === [] ) {
 			return '';
 		}
 
-		return sprintf(
-			"<!-- wp:list -->\n<ul class=\"wp-block-list\">%s</ul>\n<!-- /wp:list -->",
-			$list
+		$open           = '<ul class="wp-block-list">';
+		$close          = '</ul>';
+		$inner_content  = [ $open ];
+		$inner_html     = $open;
+		foreach ( $items as $index => $item ) {
+			if ( $index > 0 ) {
+				$inner_content[] = "\n\n";
+			}
+			$inner_content[] = null;
+			$inner_html     .= $item['innerHTML'];
+		}
+		$inner_content[] = $close;
+		$inner_html     .= $close;
+
+		return serialize_block(
+			[
+				'blockName'    => 'core/list',
+				'attrs'        => [],
+				'innerBlocks'  => $items,
+				'innerHTML'    => $inner_html,
+				'innerContent' => $inner_content,
+			]
 		);
 	}
 
@@ -311,7 +354,7 @@ final class TechArticleMarkup {
 	 * @param array<int, array<string, mixed>> $items Link rows.
 	 */
 	private static function build_real_cases_block( array $items ): string {
-		$list = '';
+		$inners = [];
 		foreach ( $items as $item ) {
 			if ( ! is_array( $item ) ) {
 				continue;
@@ -321,9 +364,10 @@ final class TechArticleMarkup {
 			if ( $label === '' || $url === '' ) {
 				continue;
 			}
-			$list .= '<li><a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a></li>';
+			$inners[] = '<a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>';
 		}
 
+		$list = self::serialize_list( $inners );
 		if ( $list === '' ) {
 			return '';
 		}
@@ -331,7 +375,7 @@ final class TechArticleMarkup {
 		return sprintf(
 			"<!-- wp:group {\"className\":\"forwp-practice-case__real-cases\"} -->\n<div class=\"wp-block-group forwp-practice-case__real-cases\">%s\n%s</div>\n<!-- /wp:group -->",
 			"\n" . self::heading_block( __( 'Real cases', '4wp-seo-helper' ), 2 ),
-			"<!-- wp:list -->\n<ul class=\"wp-block-list\">{$list}</ul>\n<!-- /wp:list -->"
+			$list
 		);
 	}
 
@@ -356,8 +400,9 @@ final class TechArticleMarkup {
 
 	/**
 	 * @param array<int, array<string, mixed>> $items FAQ rows.
+	 * @param array<string, mixed>             $data  Challenge JSON (taxonomies live under content).
 	 */
-	private static function build_faq_block( array $items ): string {
+	private static function build_faq_block( array $items, array $data = [] ): string {
 		if ( ! class_exists( '\ForWP\FAQ\Plugin' ) ) {
 			return self::build_faq_fallback( $items );
 		}
@@ -379,10 +424,56 @@ final class TechArticleMarkup {
 			return '';
 		}
 
+		$attrs = [
+			'jsonLd' => 'enable',
+		];
+		$category_name = self::faq_category_name( $data );
+		if ( $category_name !== '' ) {
+			$attrs['categoryMode'] = 'new';
+			$attrs['categoryName'] = $category_name;
+		}
+
+		$json = wp_json_encode( $attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+
 		return sprintf(
-			'<!-- wp:forwp/faq {"jsonLd":"enable"} -->' . "\n<div class=\"wp-block-4wp-faq\">%s</div>\n<!-- /wp:forwp/faq -->",
+			'<!-- wp:forwp/faq %1$s -->' . "\n<div class=\"wp-block-4wp-faq\">%2$s</div>\n<!-- /wp:forwp/faq -->",
+			$json,
 			trim( $inner )
 		);
+	}
+
+	/**
+	 * FAQ category label from content.taxonomies term names (tool + category).
+	 *
+	 * @param array<string, mixed> $data Challenge JSON.
+	 */
+	private static function faq_category_name( array $data ): string {
+		$content = isset( $data['content'] ) && is_array( $data['content'] ) ? $data['content'] : [];
+		$tax     = isset( $content['taxonomies'] ) && is_array( $content['taxonomies'] ) ? $content['taxonomies'] : [];
+
+		$tool = self::practice_term_name(
+			'lms_practice_tool',
+			isset( $tax['pc_tool'] ) && is_string( $tax['pc_tool'] ) ? $tax['pc_tool'] : ''
+		);
+		$category = self::practice_term_name(
+			'lms_practice_category',
+			isset( $tax['pc_category'] ) && is_string( $tax['pc_category'] ) ? $tax['pc_category'] : ''
+		);
+
+		$parts = array_values( array_filter( [ $tool, $category ] ) );
+
+		return implode( ' ', $parts );
+	}
+
+	private static function practice_term_name( string $taxonomy, string $slug ): string {
+		$slug = sanitize_title( $slug );
+		if ( $slug === '' || ! taxonomy_exists( $taxonomy ) ) {
+			return '';
+		}
+
+		$term = get_term_by( 'slug', $slug, $taxonomy );
+
+		return $term instanceof \WP_Term ? $term->name : '';
 	}
 
 	/**

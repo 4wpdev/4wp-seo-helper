@@ -14,7 +14,7 @@ A plugin by **[4WP](https://4wp.dev/)**
 
 - **SEO Inventory table** — filters, missing-field views, CSV export, quick edit
 - **Trends** — Google Trends JSON or related-queries CSV; query + region key; date snapshots and Δ; inventory Trends column
-- **Positions** — Serper rank checks (query + country) vs Search Console property; JSON snapshots; People also ask / related searches
+- **Focus Keywords** — unique phrases from Inventory; usage list; SERP position when Positions has a snapshot for that query + URL; keyword-level P1–P3
 - **4WP Drive** — TechArticle wrap capabilities for import mapping (Goal, Context, Steps, Common mistakes); see https://wordpress.org/plugins/4wp-drive/
 - **Priority queue** — P1 / P2 / P3 business tiers (names configurable in Settings)
 - **Drag-and-drop** — reorder and move items between priority groups without reload
@@ -71,6 +71,7 @@ On activation, the inventory API token is created and the module is enabled by d
 |--------|------|
 | Dashboard | **4WP SEO** (`forwp-seo`) |
 | Inventory table | **4WP SEO → SEO Inventory** (`forwp-seo-inventory`) |
+| Focus Keywords | **4WP SEO → Focus Keywords** (`forwp-seo-focus-keywords`) |
 | Dynamics | **4WP SEO → Dynamics** (`forwp-seo-dynamics`) |
 | Search Console | **4WP SEO → G Webmaster Con.** (`forwp-seo-gsc`) |
 | Trends | **4WP SEO → Trends** (`forwp-seo-trends`) |

@@ -26,6 +26,7 @@ final class Menu {
 	public const AI_PAGE_SLUG              = 'forwp-seo-ai';
 	public const TRENDS_PAGE_SLUG          = 'forwp-seo-trends';
 	public const POSITIONS_PAGE_SLUG       = 'forwp-seo-positions';
+	public const FOCUS_KEYWORDS_PAGE_SLUG  = 'forwp-seo-focus-keywords';
 	public const INVENTORY_POST_TYPE_ARG   = 'forwp_post_type';
 	public const INVENTORY_TAXONOMY_ARG    = 'forwp_taxonomy';
 	public const INVENTORY_TERM_ARG        = 'forwp_term';
@@ -57,6 +58,9 @@ final class Menu {
 
 	/** @var string|null */
 	private static $positions_page_hook = null;
+
+	/** @var string|null */
+	private static $focus_keywords_page_hook = null;
 
 	public static function get_instance(): self {
 		if ( null === self::$instance ) {
@@ -109,6 +113,15 @@ final class Menu {
 			'manage_options',
 			self::INVENTORY_PAGE_SLUG,
 			[ InventoryPage::class, 'render' ]
+		);
+
+		self::$focus_keywords_page_hook = add_submenu_page(
+			self::PAGE_SLUG,
+			__( 'Keyword Bank', '4wp-seo-helper' ),
+			__( 'Keyword Bank', '4wp-seo-helper' ),
+			'manage_options',
+			self::FOCUS_KEYWORDS_PAGE_SLUG,
+			[ FocusKeywordsPage::class, 'render' ]
 		);
 
 		if ( Release::is_module_public( Release::MODULE_GSC ) ) {
@@ -200,6 +213,10 @@ final class Menu {
 
 		if ( is_string( self::$positions_page_hook ) && '' !== self::$positions_page_hook ) {
 			add_action( 'load-' . self::$positions_page_hook, [ PositionsPage::class, 'handle_load' ] );
+		}
+
+		if ( is_string( self::$focus_keywords_page_hook ) && '' !== self::$focus_keywords_page_hook ) {
+			add_action( 'load-' . self::$focus_keywords_page_hook, [ FocusKeywordsPage::class, 'handle_load' ] );
 		}
 	}
 
@@ -441,6 +458,25 @@ final class Menu {
 			return;
 		}
 
+		if (
+			( is_string( self::$focus_keywords_page_hook ) && self::$focus_keywords_page_hook === $hook_suffix )
+			|| str_ends_with( $hook_suffix, '_page_' . self::FOCUS_KEYWORDS_PAGE_SLUG )
+		) {
+			wp_enqueue_style(
+				'forwp-seo-admin-settings',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-settings.css',
+				[],
+				FORWP_SEO_HELPER_VERSION
+			);
+			wp_enqueue_style(
+				'forwp-seo-admin-focus-keywords',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-focus-keywords.css',
+				[ 'forwp-seo-admin-settings' ],
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/css/admin-focus-keywords.css' )
+			);
+			return;
+		}
+
 		if ( is_string( self::$inventory_page_hook ) && self::$inventory_page_hook === $hook_suffix ) {
 			$this->enqueue_inventory_assets();
 		}
@@ -556,7 +592,7 @@ final class Menu {
 				'forwp-seo-inventory-gsc-actions',
 				FORWP_SEO_HELPER_URL . 'assets/js/inventory-gsc-actions.js',
 				[],
-				FORWP_SEO_HELPER_VERSION,
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/js/inventory-gsc-actions.js' ),
 				true
 			);
 
