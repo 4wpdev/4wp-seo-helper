@@ -7,6 +7,7 @@ namespace Forwp\SeoHelper\Admin;
 
 use Forwp\SeoHelper\Core\Release;
 use Forwp\SeoHelper\CrossPosting\Module as CrossPostingModule;
+use Forwp\SeoHelper\CrossPosting\Platforms;
 use Forwp\SeoHelper\Gsc\Admin as GscAdmin;
 use Forwp\SeoHelper\Gsc\Module as GscModule;
 use Forwp\SeoHelper\Gsc\Sync as GscSync;
@@ -319,7 +320,6 @@ final class Page {
 	}
 
 	private static function render_settings_tab( bool $crossposting_enabled, bool $inventory_enabled, bool $gsc_enabled ): void {
-		unset( $crossposting_enabled );
 		?>
 		<div class="forwp-seo-intro-card">
 			<h2 class="forwp-seo-intro-card__title"><?php esc_html_e( 'General settings', '4wp-seo-helper' ); ?></h2>
@@ -350,6 +350,32 @@ final class Page {
 						<span class="forwp-seo-admin-muted"><?php esc_html_e( 'Enable the webmaster panel: OAuth, property picker, URL inspection, and search metrics.', '4wp-seo-helper' ); ?></span>
 					</span>
 				</label>
+				<?php endif; ?>
+
+				<?php if ( Release::is_module_public( Release::MODULE_CROSSPOSTING ) ) : ?>
+				<label class="forwp-seo-toggle-row">
+					<input type="checkbox" name="forwp_seo_crossposting_enabled" value="1" <?php checked( $crossposting_enabled ); ?> />
+					<span>
+						<strong><?php esc_html_e( 'Cross posting', '4wp-seo-helper' ); ?></strong><br />
+						<span class="forwp-seo-admin-muted">
+							<?php esc_html_e( 'Platform list and the editor panel for posts imported from a 4WP Drive meta.json package.', '4wp-seo-helper' ); ?>
+							<?php if ( $crossposting_enabled ) : ?>
+								<a href="<?php echo esc_url( Platforms::admin_url() ); ?>"><?php esc_html_e( 'Manage platforms', '4wp-seo-helper' ); ?></a>
+							<?php endif; ?>
+						</span>
+					</span>
+				</label>
+				<p class="forwp-seo-toggle-row">
+					<label for="forwp-seo-crossposting-delay">
+						<strong><?php esc_html_e( 'Cross posting delay (hours)', '4wp-seo-helper' ); ?></strong><br />
+						<span class="forwp-seo-admin-muted"><?php esc_html_e( 'Time after the original is published before cross-posting. A package can override it with "republish.delay_hours" in meta.json.', '4wp-seo-helper' ); ?></span>
+					</label>
+					<input type="number" min="0" step="1" id="forwp-seo-crossposting-delay" name="forwp_seo_crossposting_delay_hours" value="<?php echo esc_attr( (string) CrossPostingModule::get_instance()->delay_hours() ); ?>" class="small-text" />
+					<label for="forwp-seo-crossposting-delay-minutes">
+						<?php esc_html_e( 'minutes', '4wp-seo-helper' ); ?>
+						<input type="number" min="0" max="59" step="1" id="forwp-seo-crossposting-delay-minutes" name="forwp_seo_crossposting_delay_minutes" value="<?php echo esc_attr( (string) CrossPostingModule::get_instance()->delay_minutes() ); ?>" class="small-text" />
+					</label>
+				</p>
 				<?php endif; ?>
 
 				<div class="forwp-seo-form-actions">
@@ -777,6 +803,12 @@ final class Page {
 			if ( Release::is_module_public( Release::MODULE_CROSSPOSTING ) ) {
 				$enabled = isset( $_POST['forwp_seo_crossposting_enabled'] ) ? '1' : '0';
 				update_option( CrossPostingModule::OPTION_ENABLED, $enabled );
+				if ( isset( $_POST['forwp_seo_crossposting_delay_hours'] ) ) {
+					update_option( CrossPostingModule::OPTION_DELAY_HOURS, max( 0, absint( wp_unslash( $_POST['forwp_seo_crossposting_delay_hours'] ) ) ) );
+				}
+				if ( isset( $_POST['forwp_seo_crossposting_delay_minutes'] ) ) {
+					update_option( CrossPostingModule::OPTION_DELAY_MINUTES, min( 59, max( 0, absint( wp_unslash( $_POST['forwp_seo_crossposting_delay_minutes'] ) ) ) ) );
+				}
 			}
 
 			if ( Release::is_module_public( Release::MODULE_INVENTORY_API ) ) {

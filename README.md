@@ -10,6 +10,14 @@ A plugin by **[4WP](https://4wp.dev/)** · Directory listing: [`readme.txt`](rea
 
 Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 
+## Version 2.5.0
+
+- **Cross posting** — Settings toggle + default delay after the original is published; **Platforms** taxonomy (Dev.to, daily.dev, Hashnode, Medium, X, …).
+- **Editor sidebar** — per-platform status, manual send, Telegram notify for the share list (4WP Drive `meta.json` packages).
+- **Schedule** — WP-Cron on publish; optional per-package republish delay from `meta.json`.
+- **Publication log** — REST + Chrome extension store live URL/slug on the post; **Cross posting** board in wp-admin.
+- **4WP Drive** — TechArticle Steps wrap can span contiguous Step H2 sections (`span: multi`).
+
 ## Version 2.4.1
 
 - **4WP Drive** — TechArticle wraps for document import: Goal, Context, Steps, Common mistakes. Activate this plugin so Drive Patterns can list the wraps. [4WP Drive on WordPress.org](https://wordpress.org/plugins/4wp-drive/).
@@ -33,6 +41,7 @@ Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 ## Features
 
 - **4WP Drive** — TechArticle Goal / Context / Steps / Common mistakes on import ([4WP Drive](https://wordpress.org/plugins/4wp-drive/))
+- **Cross posting** — platforms, publish delay, editor send + Telegram, publication log for Drive packages
 - **Trends** — Google Trends JSON, related-queries CSV, or time-series CSV (query + region snapshots)
 - **Positions** — Serper SERP checks vs Search Console property; snapshots; People also ask / related searches
 - **SEO Inventory** — filters, missing fields, CSV export, two-column Quick Edit
@@ -66,6 +75,8 @@ The plugin does not ship API keys or talk to a model until the site administrato
 | GSC | `forwp-seo-gsc` |
 | Trends | `forwp-seo-trends` |
 | Positions | `forwp-seo-positions` |
+| Cross posting | `forwp-seo-crosspost` |
+| Platforms | `edit-tags.php?taxonomy=forwp_platform` |
 | AI Assistant | `forwp-seo-ai` |
 | Settings | `forwp-seo-settings` |
 

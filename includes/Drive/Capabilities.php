@@ -49,7 +49,8 @@ final class Capabilities {
 				TechArticleWrappers::STEPS_BLOCK,
 				'TechArticle Steps',
 				'Steps, Кроки',
-				'Role: steps. Numbered list or H3 items stay as core blocks inside the wrapper.'
+				'Role: steps. Pin once to wrap contiguous Step H2 sections in one block (or a Steps heading with H3/list items inside).',
+				'multi'
 			),
 			self::row(
 				'techarticle-issues',
@@ -126,9 +127,17 @@ final class Capabilities {
 	}
 
 	/**
+	 * @param string $span single = one H2 section; multi = contiguous step-like H2s in one wrap.
 	 * @return array<string, mixed>
 	 */
-	private static function row( string $id, string $block, string $label, string $heading_seed, string $prompt ): array {
+	private static function row(
+		string $id,
+		string $block,
+		string $label,
+		string $heading_seed,
+		string $prompt,
+		string $span = 'single'
+	): array {
 		return [
 			'id'            => $id,
 			'origin'        => 'family',
@@ -137,6 +146,7 @@ final class Capabilities {
 			'label'         => $label,
 			'maps'          => [ self::MAP ],
 			'wrap'          => 'section',
+			'span'          => 'multi' === $span ? 'multi' : 'single',
 			'match'         => [
 				'type'    => 'heading',
 				'level'   => 2,

@@ -4,7 +4,7 @@ Tags: seo, inventory, yoast, search console, google
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.4.1
+Stable tag: 2.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,8 @@ Version **2.3** adds **Trends**: import Google Trends JSON or CSV and match inte
 
 Version **2.4** adds **Positions**: track Google SERP rank for queries (via Serper) against your Search Console property, store dated snapshots, and collect People also ask / related searches.
 
+Version **2.5** adds **Cross posting** for packages imported from **4WP Drive** (`meta.json`): manage platforms, delay after the original post is published, share a Telegram list, send manually from the editor, and record publications (with live slug) from the Chrome extension.
+
 Built for teams that use **Yoast SEO** or **All in One SEO** and need one place to audit SEO fields across posts, pages, and public custom post types.
 
 A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Helper on 4wp.dev](https://4wp.dev/plugin/4wp-seo-helper/).
@@ -35,6 +37,7 @@ A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Help
 * **Search Console ops** — overview, insights, performance breakdowns, URL inspection, and background data sync
 * **Rank tracking** — Positions: query + country checks, SERP snapshots, People also ask / related searches
 * **Trends** — import Google Trends snapshots and see interest next to matching keyphrases
+* **Cross posting** — after a Drive package is published, schedule or send shares to Dev.to, daily.dev, Hashnode, Medium, X, and more; Telegram notify; status in the editor
 * **Indexing workflows** — refresh index status and request indexing from the inventory table or admin bar
 * **External sync** — REST API for Google Sheets or custom dashboards
 * **Multilingual sites** — Polylang, WPML, or single-language
@@ -73,6 +76,15 @@ If the connected Google account does **not** have access to this site's Search C
 4. Click **Update** to fetch organic results (Top 10 / 20 / 30; extra pages only if your site is missing). Each check stores a dated JSON snapshot.
 5. Hover the SERP icon for titles; hover **Ask / Suggest** for People also ask and related searches collected from that query. The **Related** tab lists unique phrases with source query IDs.
 
+**Cross posting (4WP Drive packages)**
+
+1. Enable **Cross posting** under **4WP SEO → Settings** and set the default delay (hours) after the original is published.
+2. Open **4WP SEO → Platforms** and add the networks you use (Dev.to, daily.dev, Hashnode, Medium, X, etc.).
+3. Import a package from **4WP Drive** with `meta.json` / republish settings when you need per-package delay or platform overrides.
+4. After the WordPress post is published, the plugin schedules cross posts (or you send from the editor sidebar).
+5. Use **Send to Telegram** for the share list; record a live publication URL/slug from the Chrome extension when you post on a network.
+6. Open **4WP SEO → Cross posting** for the board / status overview.
+
 = Google Search Console features =
 
 * **OAuth connection** — per-site Client ID/Secret, connect/disconnect Google account (tokens only; credentials stay saved)
@@ -104,11 +116,19 @@ If the connected Google account does **not** have access to this site's Search C
 * Hover preview of organic titles; **Ask / Suggest** tooltip for People also ask and related searches
 * Related tab keeps unique phrases and an array of source query IDs when the same idea appears on several checks
 
+= Cross posting =
+
+* **4WP SEO → Platforms** — taxonomy of share targets (Dev.to, daily.dev, Hashnode, Medium, X, and custom)
+* **Delay** — hours (and optional minutes) after the original post is published before cross posting; `meta.json` republish settings can override
+* **Editor sidebar** — status per platform, manual send, Telegram notify for the share list
+* **Publication log** — URL and live slug recorded on the post (Chrome extension / REST); Cross posting board in wp-admin
+* Works with packages imported from **4WP Drive** (`meta.json`)
+
 = Modules =
 
-**Available in wp-admin:** SEO Inventory, Inventory REST API, Google Search Console, Trends, Positions, AI Assistant (when a WordPress AI connector is configured).
+**Available in wp-admin:** SEO Inventory, Inventory REST API, Google Search Console, Trends, Positions, Cross posting, AI Assistant (when a WordPress AI connector is configured).
 
-**Coming soon:** TechArticle schema, LLMS.txt, and cross posting (visible as badges in Settings until a future release).
+**Coming soon:** TechArticle schema and LLMS.txt (visible as badges in Settings until a future release).
 
 == Installation ==
 
@@ -257,6 +277,15 @@ When an administrator configures a connector under **Settings → Connectors** a
 
 == Changelog ==
 
+= 2.5.0 =
+* **Cross posting** — enable under Settings; default delay (hours) after the original post is published.
+* **Platforms** — manage share targets (Dev.to, daily.dev, Hashnode, Medium, X, and more) under 4WP SEO → Platforms.
+* **Editor** — sidebar status per platform, manual send, and Telegram notify for the share list (4WP Drive `meta.json` packages).
+* **Schedule** — WP-Cron after publish; per-package republish delay from `meta.json` when set.
+* **Publication log** — REST + Chrome extension record live URL/slug on the post; Cross posting board in wp-admin.
+* **Material** screen and REST board/payload/notify endpoints for the cross-post workflow.
+* **4WP Drive** — TechArticle Steps wrap can span contiguous Step H2 sections (`span: multi`).
+
 = 2.4.1 =
 * **4WP Drive** — register TechArticle wraps for import mapping: Goal, Context, Steps, Common mistakes. Drive Patterns → Integrations Plugins lists this plugin when it is active. See [4WP Drive](https://wordpress.org/plugins/4wp-drive/).
 * Heading aliases include Ukrainian seeds (Мета, Контекст, Кроки, Типові помилки); titles stay editable in Drive Patterns.
@@ -309,6 +338,9 @@ When an administrator configures a connector under **Settings → Connectors** a
 * Future modules (TechArticle, LLMS.txt, cross posting) visible as Coming soon in admin.
 
 == Upgrade Notice ==
+
+= 2.5.0 =
+Cross posting for 4WP Drive packages: Platforms list, publish delay, editor sidebar (manual send + Telegram), and publication log with live slug.
 
 = 2.4.1 =
 Registers TechArticle section wraps with 4WP Drive so imported documents can map Goal / Context / Steps / Common mistakes. https://wordpress.org/plugins/4wp-drive/

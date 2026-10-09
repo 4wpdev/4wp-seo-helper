@@ -7,6 +7,7 @@ namespace Forwp\SeoHelper\Admin;
 
 use Forwp\SeoHelper\Core\Release;
 use Forwp\SeoHelper\CrossPosting\Module as CrossPostingModule;
+use Forwp\SeoHelper\CrossPosting\Platforms;
 use Forwp\SeoHelper\Gsc\Admin as GscAdmin;
 use Forwp\SeoHelper\Gsc\Module as GscModule;
 
@@ -48,6 +49,8 @@ final class Editor {
 			'baseUrl'             => esc_url_raw( rest_url( 'forwp-seo/v1' ) ),
 			'crosspostingEnabled' => CrossPostingModule::get_instance()->is_enabled()
 				&& Release::is_module_public( Release::MODULE_CROSSPOSTING ),
+			'crosspostingPublic'  => Release::is_module_public( Release::MODULE_CROSSPOSTING ),
+			'platformsUrl'        => current_user_can( 'manage_options' ) ? Platforms::admin_url() : '',
 			'techarticleEnabled'  => Release::is_module_public( Release::MODULE_TECHARTICLE ),
 			'gscEnabled'          => Release::is_module_public( Release::MODULE_GSC )
 				&& GscModule::get_instance()->is_enabled(),

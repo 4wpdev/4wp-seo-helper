@@ -6,6 +6,8 @@
 namespace Forwp\SeoHelper\Admin;
 
 use Forwp\SeoHelper\Core\Release;
+use Forwp\SeoHelper\CrossPosting\Module as CrossPostingModule;
+use Forwp\SeoHelper\CrossPosting\Platforms;
 use Forwp\SeoHelper\Gsc\Admin as GscAdmin;
 use Forwp\SeoHelper\Gsc\Module as GscModule;
 use Forwp\SeoHelper\Inventory\PriorityLabels;
@@ -27,6 +29,8 @@ final class Menu {
 	public const TRENDS_PAGE_SLUG          = 'forwp-seo-trends';
 	public const POSITIONS_PAGE_SLUG       = 'forwp-seo-positions';
 	public const FOCUS_KEYWORDS_PAGE_SLUG  = 'forwp-seo-focus-keywords';
+	public const MATERIAL_PAGE_SLUG        = 'forwp-seo-material';
+	public const CROSSPOST_PAGE_SLUG       = 'forwp-seo-crosspost';
 	public const INVENTORY_POST_TYPE_ARG   = 'forwp_post_type';
 	public const INVENTORY_TAXONOMY_ARG    = 'forwp_taxonomy';
 	public const INVENTORY_TERM_ARG        = 'forwp_term';
@@ -62,6 +66,9 @@ final class Menu {
 	/** @var string|null */
 	private static $focus_keywords_page_hook = null;
 
+	/** @var string|null */
+	private static $crosspost_page_hook = null;
+
 	public static function get_instance(): self {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -71,6 +78,7 @@ final class Menu {
 
 	private function __construct() {
 		add_action( 'admin_menu', [ $this, 'register_menu' ] );
+		add_filter( 'parent_file', [ $this, 'platforms_parent_file' ] );
 		add_action( 'admin_init', [ $this, 'protect_plugin_screens' ], 0 );
 		add_action( 'admin_init', [ $this, 'handle_legacy_routes' ] );
 		add_action( 'admin_init', [ $this, 'handle_admin_form_posts' ] );
@@ -84,6 +92,20 @@ final class Menu {
 			10,
 			3
 		);
+	}
+
+	/**
+	 * Keep "4WP SEO → Platforms" highlighted on the taxonomy screen.
+	 *
+	 * @param string $parent_file Parent menu slug.
+	 */
+	public function platforms_parent_file( $parent_file ) {
+		global $submenu_file, $taxonomy;
+		if ( Platforms::TAXONOMY === $taxonomy ) {
+			$submenu_file = 'edit-tags.php?taxonomy=' . Platforms::TAXONOMY; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+			return self::PAGE_SLUG;
+		}
+		return $parent_file;
 	}
 
 	public function register_menu(): void {
@@ -164,6 +186,15 @@ final class Menu {
 			[ PositionsPage::class, 'render' ]
 		);
 
+		add_submenu_page(
+			null,
+			__( 'Material', '4wp-seo-helper' ),
+			__( 'Material', '4wp-seo-helper' ),
+			'manage_options',
+			self::MATERIAL_PAGE_SLUG,
+			[ MaterialPage::class, 'render' ]
+		);
+
 		self::$ai_page_hook = add_submenu_page(
 			null,
 			__( 'AI Assistant', '4wp-seo-helper' ),
@@ -172,6 +203,24 @@ final class Menu {
 			self::AI_PAGE_SLUG,
 			[ AiAssistantPage::class, 'render' ]
 		);
+
+		if ( Release::is_module_public( Release::MODULE_CROSSPOSTING ) && CrossPostingModule::get_instance()->is_enabled() ) {
+			self::$crosspost_page_hook = add_submenu_page(
+				self::PAGE_SLUG,
+				__( 'Cross posting', '4wp-seo-helper' ),
+				__( 'Cross posting', '4wp-seo-helper' ),
+				'manage_options',
+				self::CROSSPOST_PAGE_SLUG,
+				[ CrossPostPage::class, 'render' ]
+			);
+			add_submenu_page(
+				self::PAGE_SLUG,
+				__( 'Platforms', '4wp-seo-helper' ),
+				__( 'Platforms', '4wp-seo-helper' ),
+				'manage_options',
+				'edit-tags.php?taxonomy=' . Platforms::TAXONOMY
+			);
+		}
 
 		self::$settings_page_hook = add_submenu_page(
 			self::PAGE_SLUG,
@@ -473,6 +522,26 @@ final class Menu {
 				FORWP_SEO_HELPER_URL . 'assets/css/admin-focus-keywords.css',
 				[ 'forwp-seo-admin-settings' ],
 				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/css/admin-focus-keywords.css' )
+			);
+			return;
+		}
+
+		if (
+			( is_string( self::$crosspost_page_hook ) && self::$crosspost_page_hook === $hook_suffix )
+			|| str_ends_with( $hook_suffix, '_page_' . self::CROSSPOST_PAGE_SLUG )
+			|| str_ends_with( $hook_suffix, '_page_' . self::MATERIAL_PAGE_SLUG )
+		) {
+			wp_enqueue_style(
+				'forwp-seo-admin-settings',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-settings.css',
+				[],
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/css/admin-settings.css' )
+			);
+			wp_enqueue_style(
+				'forwp-seo-admin-crosspost',
+				FORWP_SEO_HELPER_URL . 'assets/css/admin-crosspost.css',
+				[ 'forwp-seo-admin-settings' ],
+				(string) filemtime( FORWP_SEO_HELPER_PATH . 'assets/css/admin-crosspost.css' )
 			);
 			return;
 		}

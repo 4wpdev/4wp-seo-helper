@@ -18,18 +18,10 @@
 	const { createBlock } = wp.blocks || {};
 	const { useSelect } = wp.data;
 	const { useState, useEffect, Fragment } = wp.element;
-	const { PanelBody, Button, TextareaControl, Spinner, Notice } = wp.components;
+	const { PanelBody, Button, Spinner, Notice } = wp.components;
 	const { __ } = wp.i18n;
 	const chartBar = wp.icons ? wp.icons.chartBar : null;
 	const apiFetch = wp.apiFetch;
-
-	const PLATFORMS = [
-		{ id: 'devto', label: 'dev.to' },
-		{ id: 'medium', label: 'Medium' },
-		{ id: 'linkedin', label: 'LinkedIn' },
-		{ id: 'x', label: 'X' },
-		{ id: 'bsky', label: 'Bluesky' },
-	];
 
 	const flattenBlocks = ( blocks ) => {
 		let flat = [];
@@ -215,10 +207,11 @@
 			};
 		}, [ postExcerpt ] );
 
-		const [ platform, setPlatform ] = useState( '' );
-		const [ content, setContent ] = useState( '' );
-		const [ loading, setLoading ] = useState( false );
-		const [ error, setError ] = useState( '' );
+		const [ cross, setCross ] = useState( null );
+		const [ crossLoading, setCrossLoading ] = useState( false );
+		const [ crossError, setCrossError ] = useState( '' );
+		const [ notifyBusy, setNotifyBusy ] = useState( false );
+		const [ notifyNote, setNotifyNote ] = useState( '' );
 		const [ serverTechArticle, setServerTechArticle ] = useState( null );
 		const [ gscStatus, setGscStatus ] = useState( null );
 		const [ gscLoading, setGscLoading ] = useState( true );
@@ -323,43 +316,54 @@
 			};
 		}, [ postId, postType ] );
 
-		const fetchContent = async ( nextPlatform ) => {
-			if ( ! postId ) {
-				setError( __( 'Save the post before generating content.', '4wp-seo-helper' ) );
+		const sendTelegram = async () => {
+			if ( ! postId || notifyBusy || ! apiFetch ) {
 				return;
 			}
-
-			setLoading( true );
-			setError( '' );
-			setContent( '' );
-
+			setNotifyBusy( true );
+			setNotifyNote( '' );
 			try {
-				const response = await apiFetch( {
-					url: settings.baseUrl + '/crosspost?post_id=' + postId + '&platform=' + nextPlatform,
-					method: 'GET',
+				await apiFetch( {
+					path: '/forwp-seo/v1/crosspost/notify',
+					method: 'POST',
+					data: { post_id: postId },
 					headers: {
 						'X-WP-Nonce': settings.nonce,
 					},
 				} );
-				setContent( response.content || '' );
-				setPlatform( nextPlatform );
+				setNotifyNote( __( 'Sent to Telegram.', '4wp-seo-helper' ) );
 			} catch ( err ) {
-				setError( err?.message || __( 'Failed to generate content.', '4wp-seo-helper' ) );
+				setNotifyNote( err?.message || __( 'Could not send the Telegram message.', '4wp-seo-helper' ) );
 			} finally {
-				setLoading( false );
+				setNotifyBusy( false );
 			}
 		};
 
-		const copyToClipboard = async () => {
-			if ( ! content ) {
+		const loadCrossposting = async ( fresh = false ) => {
+			if ( ! postId || ! settings.crosspostingEnabled || ! apiFetch ) {
 				return;
 			}
+			setCrossLoading( true );
+			setCrossError( '' );
 			try {
-				await navigator.clipboard.writeText( content );
+				const response = await apiFetch( {
+					path: '/forwp-seo/v1/crosspost?post_id=' + postId + ( fresh === true ? '&fresh=1' : '' ),
+					headers: {
+						'X-WP-Nonce': settings.nonce,
+					},
+				} );
+				setCross( response );
 			} catch ( err ) {
-				setError( __( 'Copy failed. Try manual copy.', '4wp-seo-helper' ) );
+				setCross( null );
+				setCrossError( err?.message || __( 'Could not load cross posting status.', '4wp-seo-helper' ) );
+			} finally {
+				setCrossLoading( false );
 			}
 		};
+
+		useEffect( () => {
+			loadCrossposting();
+		}, [ postId, postStatus ] );
 
 		// Steps required for JSON-LD; Code (`core/code`) is optional enrichment — not TechArticle Context.
 		const isValid = serverTechArticle?.valid || hasSteps;
@@ -558,57 +562,159 @@
 			llmsPreview
 		);
 
-		const crosspostingList = el(
-			'div',
-			{ style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
-			...PLATFORMS.map( ( item ) =>
-				el(
-					Button,
-					{
-						key: item.id,
-						variant: platform === item.id ? 'primary' : 'secondary',
-						onClick: () => fetchContent( item.id ),
+		const crossVariantLabel = ( variant ) => {
+			const labels = {
+				ready: __( 'Variant ready', '4wp-seo-helper' ),
+				draft: __( 'Variant in progress', '4wp-seo-helper' ),
+				empty: __( 'Variant file is empty', '4wp-seo-helper' ),
+				missing: __( 'Variant file missing', '4wp-seo-helper' ),
+				skipped: __( 'Skipped', '4wp-seo-helper' ),
+				none: __( 'No variant', '4wp-seo-helper' ),
+			};
+			return labels[ variant ] || variant || '';
+		};
+
+		const crossPlatformRow = ( item ) =>
+			el(
+				'li',
+				{
+					key: item.key,
+					style: {
+						padding: '6px 0',
+						borderBottom: '1px solid #f0f0f1',
+						margin: 0,
 					},
-					item.label
-				)
-			)
-		);
-
-		const loadingBlock = loading
-			? el( 'p', { style: { marginTop: '12px' } }, el( Spinner ) )
-			: null;
-
-		const errorBlock = error
-			? el( 'p', { style: { color: '#b32d2e' } }, error )
-			: null;
-
-		const contentBlock = content
-			? el(
-				'div',
-				{ style: { marginTop: '12px' } },
-				el( TextareaControl, {
-					label: __( 'Copy-ready content', '4wp-seo-helper' ),
-					value: content,
-					readOnly: true,
-					rows: 10,
-				} ),
+				},
 				el(
-					Button,
-					{ variant: 'primary', onClick: copyToClipboard },
-					__( 'Copy', '4wp-seo-helper' )
+					'div',
+					{ style: { display: 'flex', justifyContent: 'space-between', gap: '8px' } },
+					el(
+						'span',
+						null,
+						el( 'strong', null, item.label ),
+						el(
+							'span',
+							{ style: { marginLeft: '6px', color: '#646970', fontSize: '11px' } },
+							item.mode === 'api' ? __( 'API', '4wp-seo-helper' ) : __( 'Manual', '4wp-seo-helper' )
+						),
+						item.open_url
+							? el(
+								'a',
+								{
+									href: item.open_url,
+									target: '_blank',
+									rel: 'noopener',
+									'data-forwp-crosspost-post': String( postId ),
+									'data-forwp-crosspost-platform': item.key,
+									title: __( 'Open', '4wp-seo-helper' ) + ' ' + item.label,
+									'aria-label': __( 'Open', '4wp-seo-helper' ) + ' ' + item.label,
+									style: { marginLeft: '4px', textDecoration: 'none', verticalAlign: 'middle' },
+								},
+								el( 'span', { className: 'dashicons dashicons-external', style: { fontSize: '16px', width: '16px', height: '16px' } } )
+							)
+							: null
+					),
+					item.posted
+						? el(
+							'a',
+							{ href: item.url || undefined, target: '_blank', rel: 'noopener noreferrer' },
+							__( 'Posted', '4wp-seo-helper' )
+						)
+						: el( 'span', { style: { color: '#646970' } }, __( 'Not posted', '4wp-seo-helper' ) )
+				),
+				el(
+					'div',
+					{ style: { color: '#646970', fontSize: '11px' } },
+					crossVariantLabel( item.variant )
 				)
-			)
-			: null;
+			);
 
-		const crosspostingBody = settings.crosspostingEnabled
-			? [ crosspostingList, loadingBlock, errorBlock, contentBlock ].filter( Boolean )
-			: [
+		let crosspostingBody;
+		if ( ! settings.crosspostingEnabled ) {
+			crosspostingBody = [
 				el(
 					'p',
-					null,
+					{ key: 'off' },
 					__( 'Cross posting module is disabled. Enable it in 4wp SEO settings.', '4wp-seo-helper' )
 				),
 			];
+		} else if ( crossLoading && ! cross ) {
+			crosspostingBody = [ el( Spinner, { key: 'spin' } ) ];
+		} else if ( crossError ) {
+			crosspostingBody = [
+				el( Notice, { key: 'err', status: 'error', isDismissible: false }, crossError ),
+			];
+		} else if ( ! cross || ! cross.package ) {
+			crosspostingBody = [
+				el(
+					'p',
+					{ key: 'none' },
+					__( 'No meta.json package for this post. Import it from 4WP Drive to cross-post.', '4wp-seo-helper' )
+				),
+			];
+		} else {
+			const original = cross.original || {};
+			crosspostingBody = [
+				el(
+					'p',
+					{ key: 'original' },
+					__( 'Original:', '4wp-seo-helper' ) + ' ',
+					original.url
+						? el( 'a', { href: original.url, target: '_blank', rel: 'noopener noreferrer' }, original.status || '—' )
+						: original.status || '—'
+				),
+				el(
+					'p',
+					{ key: 'delay' },
+					cross.republish_at
+						? __( 'Cross-post from:', '4wp-seo-helper' ) +
+							' ' +
+							new Date( cross.republish_at ).toLocaleString()
+						: __( 'Cross-post delay:', '4wp-seo-helper' ) +
+							' ' +
+							cross.delay_hours +
+							' ' +
+							__( 'h after publishing', '4wp-seo-helper' )
+				),
+				cross.sync_error
+					? el( Notice, { key: 'sync', status: 'warning', isDismissible: false }, cross.sync_error )
+					: null,
+				cross.platforms && cross.platforms.length
+					? el(
+						'ul',
+						{ key: 'list', style: { margin: 0, padding: 0, listStyle: 'none' } },
+						...cross.platforms.map( crossPlatformRow )
+					)
+					: el(
+						'p',
+						{ key: 'empty' },
+						__( 'No enabled platforms in this package.', '4wp-seo-helper' ),
+						settings.platformsUrl
+							? el( 'span', null, ' ', el( 'a', { href: settings.platformsUrl }, __( 'Manage platforms', '4wp-seo-helper' ) ) )
+							: null
+					),
+				el(
+					Button,
+					{
+						key: 'notify',
+						variant: 'primary',
+						isBusy: notifyBusy,
+						disabled: notifyBusy,
+						onClick: sendTelegram,
+						style: { marginTop: '8px', marginRight: '8px' },
+					},
+					__( 'Send to Telegram', '4wp-seo-helper' )
+				),
+				notifyNote
+					? el( 'p', { key: 'notify-note', style: { margin: '8px 0 0' } }, notifyNote )
+					: null,
+				el(
+					Button,
+					{ key: 'refresh', variant: 'secondary', isBusy: crossLoading, disabled: crossLoading, onClick: () => loadCrossposting( true ), style: { marginTop: '8px' } },
+					__( 'Refresh', '4wp-seo-helper' )
+				),
+			].filter( Boolean );
+		}
 
 		const formatRequestedAt = ( ts ) => {
 			const n = parseInt( ts, 10 );
@@ -930,7 +1036,7 @@
 				)
 			);
 		}
-		if ( settings.crosspostingEnabled || settings.techarticleEnabled ) {
+		if ( settings.crosspostingPublic ) {
 			sidebarPanels.push(
 				el(
 					PanelBody,

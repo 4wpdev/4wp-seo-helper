@@ -10,7 +10,7 @@ A plugin by **[4WP](https://4wp.dev/)**
 
 > WordPress.org listing uses **[readme.txt](../readme.txt)** in the plugin root (not this file).
 
-## Features (v2.4.1)
+## Features (v2.5.0)
 
 - **SEO Inventory table** — filters, missing-field views, CSV export, quick edit
 - **Trends** — Google Trends JSON or related-queries CSV; query + region key; date snapshots and Δ; inventory Trends column
@@ -24,12 +24,13 @@ A plugin by **[4WP](https://4wp.dev/)**
 - **Post type discovery** — public CPTs with `show_ui`; exclude via filter
 - **AI Assistant** — WordPress AI Client (`Settings → Connectors`); inventory Generate for title / description / keyphrases
 - **Dashboard & Dynamics** — configurable widgets, 7/28/90d GSC ranges; change list with pagination
+- **Cross posting** — Platforms taxonomy, publish delay, editor sidebar (send + Telegram), schedule, publication log / board (Drive `meta.json` packages)
 
 ### Coming soon (in codebase)
 
-TechArticle schema & blocks, LLMS.txt, and cross posting ship in future releases. They appear as **Coming soon** in wp-admin.
+TechArticle schema & blocks and LLMS.txt ship in future releases. They appear as **Coming soon** in wp-admin.
 
-**Google Search Console** is enabled (`Release::MODULE_GSC` in public modules).
+**Google Search Console** and **Cross posting** are enabled when marked public in `Release` (`MODULE_GSC`, `MODULE_CROSSPOSTING`).
 
 ## How it works
 
