@@ -1,0 +1,10 @@
+{
+  "name": "4wpdev/4wp-seo-helper",
+  "description": "SEO Inventory, Google Search Console, Trends, and SERP Positions for WordPress — audit SEO fields, P1–P3 priorities, sync Search Analytics, inspect URLs. Works with Yoast SEO and All in One SEO.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=8.0",
+    "composer/installers": "^2.0"
+  }
+}
