@@ -25,10 +25,7 @@ final class Module {
 	}
 
 	private function __construct() {
-		if ( ! Schema::tables_exist() ) {
-			Schema::install();
-		} else {
-			Schema::maybe_upgrade();
-		}
+		// Version-gated: never run dbDelta on every request (e.g. if CREATE TABLE fails).
+		Schema::maybe_upgrade();
 	}
 }

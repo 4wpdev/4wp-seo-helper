@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Schema {
-	public const DB_VERSION        = '1.1.0';
+	public const DB_VERSION        = '1.2.0';
 	public const OPTION_DB_VERSION = 'forwp_seo_trends_db_version';
 
 	public static function keys_table(): string {
@@ -49,7 +49,7 @@ final class Schema {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
 				KEY created_at (created_at)
-			) {$charset};"
+			) ENGINE=InnoDB {$charset};"
 		);
 
 		dbDelta(
@@ -61,11 +61,11 @@ final class Schema {
 				excluded tinyint(1) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
-				UNIQUE KEY query_region (query_key(191), region(64)),
+				UNIQUE KEY query_region (query_key(180), region(64)),
 				KEY region (region(64)),
 				KEY language (language),
 				KEY excluded (excluded)
-			) {$charset};"
+			) ENGINE=InnoDB {$charset};"
 		);
 
 		dbDelta(
@@ -80,7 +80,7 @@ final class Schema {
 				PRIMARY KEY  (id),
 				KEY key_snapshot (key_id, snapshot_label),
 				KEY batch_id (batch_id)
-			) {$charset};"
+			) ENGINE=InnoDB {$charset};"
 		);
 
 		update_option( self::OPTION_DB_VERSION, self::DB_VERSION );
