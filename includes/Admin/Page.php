@@ -5,6 +5,8 @@
 
 namespace Forwp\SeoHelper\Admin;
 
+use Forwp\SeoHelper\Abilities\Module as AbilitiesModule;
+use Forwp\SeoHelper\Abilities\Settings as AbilitiesSettings;
 use Forwp\SeoHelper\Core\Release;
 use Forwp\SeoHelper\CrossPosting\Module as CrossPostingModule;
 use Forwp\SeoHelper\CrossPosting\Platforms;
@@ -389,6 +391,8 @@ final class Page {
 
 		<?php self::render_ai_assistant_panel(); ?>
 
+		<?php self::render_abilities_panel(); ?>
+
 		<?php self::render_coming_soon_modules_panel(); ?>
 		<?php
 	}
@@ -656,6 +660,65 @@ final class Page {
 		<?php
 	}
 
+	private static function render_abilities_panel(): void {
+		if ( ! function_exists( 'wp_register_ability' ) ) {
+			return;
+		}
+
+		$settings = AbilitiesSettings::get();
+		$labels   = [
+			'text'   => __( 'Text — cleaned post_content (cheapest)', '4wp-seo-helper' ),
+			'html'   => __( 'HTML — blocks and shortcodes rendered', '4wp-seo-helper' ),
+			'blocks' => __( 'Blocks — raw post_content with Gutenberg markup', '4wp-seo-helper' ),
+		];
+		?>
+		<div class="forwp-seo-panel">
+			<h2 class="forwp-seo-admin-section-title"><?php esc_html_e( 'AI agents (Abilities): page content', '4wp-seo-helper' ); ?></h2>
+			<p class="forwp-seo-admin-muted">
+				<?php esc_html_e( 'What the forwp-seo-helper/get-content ability returns to AI agents (e.g. Claude via 4WP MCP Connector). Uncleaned formats are much larger and cost more tokens.', '4wp-seo-helper' ); ?>
+			</p>
+			<p class="forwp-seo-admin-muted"><em><?php echo esc_html( AbilitiesModule::content_notice() ); ?></em></p>
+			<form method="post">
+				<?php wp_nonce_field( 'forwp_seo_settings', 'forwp_seo_settings_nonce' ); ?>
+				<input type="hidden" name="forwp_seo_save_abilities" value="1" />
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Allowed formats', '4wp-seo-helper' ); ?></th>
+						<td>
+							<?php foreach ( $labels as $format => $label ) : ?>
+								<label style="display:block">
+									<input type="checkbox" name="forwp_seo_abilities_allowed_formats[]" value="<?php echo esc_attr( $format ); ?>" <?php checked( in_array( $format, $settings['allowed_formats'], true ) ); ?> />
+									<?php echo esc_html( $label ); ?>
+								</label>
+							<?php endforeach; ?>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="forwp-seo-abilities-default-format"><?php esc_html_e( 'Default format', '4wp-seo-helper' ); ?></label></th>
+						<td>
+							<select id="forwp-seo-abilities-default-format" name="forwp_seo_abilities_default_format">
+								<?php foreach ( $labels as $format => $label ) : ?>
+									<option value="<?php echo esc_attr( $format ); ?>" <?php selected( $settings['default_format'], $format ); ?>><?php echo esc_html( $label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="forwp-seo-abilities-max-chars"><?php esc_html_e( 'Max characters', '4wp-seo-helper' ); ?></label></th>
+						<td>
+							<input type="number" min="500" max="<?php echo esc_attr( (string) AbilitiesSettings::MAX_CHARS_LIMIT ); ?>" step="500" id="forwp-seo-abilities-max-chars" name="forwp_seo_abilities_max_chars" value="<?php echo esc_attr( (string) $settings['max_chars'] ); ?>" class="small-text" />
+							<p class="description"><?php esc_html_e( 'Longer content is cut and marked as truncated.', '4wp-seo-helper' ); ?></p>
+						</td>
+					</tr>
+				</table>
+				<div class="forwp-seo-form-actions">
+					<?php submit_button( __( 'Save', '4wp-seo-helper' ), 'primary', 'submit', false ); ?>
+				</div>
+			</form>
+		</div>
+		<?php
+	}
+
 	private static function render_coming_soon_modules_panel(): void {
 		$modules = [
 			Release::MODULE_TECHARTICLE  => __( 'TechArticle schema & blocks', '4wp-seo-helper' ),
@@ -851,6 +914,12 @@ final class Page {
 			ExcludedPostTypes::set( $slugs );
 			$tab   = self::TAB_SETTINGS;
 			$saved = 'excluded_types';
+		}
+
+		if ( ! empty( $_POST['forwp_seo_save_abilities'] ) ) {
+			AbilitiesSettings::save_from_post();
+			$tab   = self::TAB_SETTINGS;
+			$saved = 'settings';
 		}
 
 		if ( ! empty( $_POST['forwp_seo_save_excluded_taxonomies'] ) ) {

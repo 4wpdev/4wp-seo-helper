@@ -4,7 +4,7 @@ Tags: seo, inventory, yoast, search console, google
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.6.0
+Stable tag: 2.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -279,6 +279,12 @@ When an administrator configures a connector under **Settings → Connectors** a
 5. GSC data sync, inventory Search Console metrics, and indexing actions
 
 == Changelog ==
+
+= 2.6.1 =
+* **New ability** `forwp-seo-helper/get-content` — page body (post_content) by ID or slug so AI agents can write content and SEO meta from it: cleaned text (default, cheapest), rendered HTML or raw blocks; heading outline, word count, links, images without alt, current SEO meta. Every response carries a notice that the public page may include more (theme template, header/footer, sidebars, plugin output).
+* **Settings → AI agents (Abilities): page content** — allowed formats, default format, max characters (default: text only, 20 000).
+* **Fix (Yoast SEO):** SEO meta written by abilities and bulk updates now refresh the Yoast indexable, so the page shows the new title / description. The rebuild updates the existing indexable instead of creating a new row. Note: Yoast stores indexables only in production mode.
+* **Fix:** abilities find child pages by plain slug (`agile`) or full path (`methodologies/agile`).
 
 = 2.6.0 =
 * **Abilities API** (WordPress 6.9+): category `forwp-seo-helper` with four abilities for AI agents / MCP:

@@ -243,10 +243,250 @@ final class Module {
 				'meta'                => [ 'annotations' => $readonly ],
 			]
 		);
+
+		$content_settings = Settings::get();
+
+		wp_register_ability(
+			'forwp-seo-helper/get-content',
+			[
+				'label'               => __( 'Get page content', '4wp-seo-helper' ),
+				'description'         => sprintf(
+					/* translators: 1: allowed formats, 2: default format, 3: max characters, 4: notice */
+					__( 'Body of one post or page (post_content) by ID or slug, to write content and SEO meta from it. Formats allowed by the site administrator: %1$s (default %2$s; text is cleaned and cheapest). Up to %3$d characters. Also returns heading outline, word count, links, images without alt and current SEO meta. %4$s', '4wp-seo-helper' ),
+					implode( ', ', $content_settings['allowed_formats'] ),
+					$content_settings['default_format'],
+					$content_settings['max_chars'],
+					self::content_notice()
+				),
+				'category'            => self::CATEGORY,
+				'input_schema'        => $this->target_schema(
+					[
+						'format'    => [
+							'type'        => 'string',
+							'enum'        => Settings::FORMATS,
+							'description' => 'text = cleaned text; html = rendered blocks and shortcodes; blocks = raw post_content. Only formats allowed in plugin settings.',
+						],
+						'max_chars' => [
+							'type'        => 'integer',
+							'minimum'     => 100,
+							'description' => 'Cut content to this length (capped by the plugin setting).',
+						],
+					]
+				),
+				'output_schema'       => [
+					'type'       => 'object',
+					'properties' => [
+						'id'                 => [ 'type' => 'integer' ],
+						'title'              => [ 'type' => 'string' ],
+						'url'                => [ 'type' => 'string' ],
+						'format'             => [ 'type' => 'string' ],
+						'content'            => [ 'type' => 'string' ],
+						'chars'              => [ 'type' => 'integer' ],
+						'truncated'          => [ 'type' => 'boolean' ],
+						'word_count'         => [ 'type' => 'integer' ],
+						'outline'            => [ 'type' => 'array' ],
+						'links'              => [ 'type' => 'object' ],
+						'images_without_alt' => [ 'type' => 'array' ],
+						'seo'                => [ 'type' => 'object' ],
+						'source'             => [ 'type' => 'string' ],
+						'notice'             => [ 'type' => 'string' ],
+					],
+					'required'   => [ 'id', 'format', 'content', 'truncated', 'source', 'notice' ],
+				],
+				'execute_callback'    => [ $this, 'get_content' ],
+				'permission_callback' => [ $this, 'can_read_content' ],
+				'meta'                => [ 'annotations' => $readonly ],
+			]
+		);
+	}
+
+	public static function content_notice(): string {
+		return __( 'Returns post_content only. The public page may differ: theme template, header/footer, sidebars, template parts and plugin output are not included. Compare with url when layout matters.', '4wp-seo-helper' );
 	}
 
 	public function can_read(): bool {
 		return current_user_can( 'edit_posts' );
+	}
+
+	/**
+	 * @param array<string, mixed>|null $input
+	 */
+	public function can_read_content( $input = null ): bool {
+		$post = $this->resolve_post( is_array( $input ) ? $input : [] );
+
+		// Unknown targets pass here and fail in execute with a clear error.
+		if ( ! $post instanceof WP_Post ) {
+			return current_user_can( 'edit_posts' );
+		}
+
+		if ( ! current_user_can( 'read_post', $post->ID ) ) {
+			return false;
+		}
+
+		// Drafts and password-protected posts: only for users who can edit them.
+		if ( 'publish' !== $post->post_status || '' !== $post->post_password ) {
+			return current_user_can( 'edit_post', $post->ID );
+		}
+
+		return true;
+	}
+
+	/**
+	 * @param array<string, mixed>|null $input
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function get_content( $input = null ) {
+		$input    = is_array( $input ) ? $input : [];
+		$settings = Settings::get();
+
+		if ( empty( $input['id'] ) && empty( $input['slug'] ) ) {
+			return new WP_Error( 'no_target', __( 'Provide id or slug.', '4wp-seo-helper' ) );
+		}
+		$post = $this->resolve_post( $input );
+		if ( ! $post instanceof WP_Post ) {
+			return new WP_Error( 'not_found', __( 'Post not found.', '4wp-seo-helper' ) );
+		}
+
+		$format = isset( $input['format'] ) && '' !== $input['format'] ? sanitize_key( (string) $input['format'] ) : $settings['default_format'];
+		if ( ! in_array( $format, $settings['allowed_formats'], true ) ) {
+			return new WP_Error(
+				'format_not_allowed',
+				sprintf(
+					/* translators: 1: requested format, 2: allowed formats */
+					__( 'Format "%1$s" is not allowed. Allowed: %2$s (4WP SEO → Settings → AI agents).', '4wp-seo-helper' ),
+					$format,
+					implode( ', ', $settings['allowed_formats'] )
+				)
+			);
+		}
+
+		$max_chars = $settings['max_chars'];
+		if ( ! empty( $input['max_chars'] ) ) {
+			$max_chars = min( $max_chars, max( 100, (int) $input['max_chars'] ) );
+		}
+
+		$rendered = $this->render_content( $post );
+		$text     = $this->html_to_text( $rendered );
+
+		if ( 'blocks' === $format ) {
+			$content = (string) $post->post_content;
+		} elseif ( 'html' === $format ) {
+			$content = $rendered;
+		} else {
+			$content = $text;
+		}
+
+		$truncated = mb_strlen( $content ) > $max_chars;
+		if ( $truncated ) {
+			$content = mb_substr( $content, 0, $max_chars );
+		}
+
+		$record = $this->repository->get_record( $post->ID );
+
+		return [
+			'id'                 => $post->ID,
+			'title'              => get_the_title( $post ),
+			'url'                => (string) get_permalink( $post ),
+			'format'             => $format,
+			'content'            => $content,
+			'chars'              => mb_strlen( $content ),
+			'truncated'          => $truncated,
+			'word_count'         => '' === $text ? 0 : count( (array) preg_split( '/\s+/u', $text ) ),
+			'outline'            => $this->outline( $rendered ),
+			'links'              => $this->links( $rendered ),
+			'images_without_alt' => $this->images_without_alt( $rendered ),
+			'seo'                => null === $record ? (object) [] : [
+				'plugin'      => (string) $record['seo_adapter'],
+				'title'       => (string) $record['seo_title'],
+				'description' => (string) $record['meta_description'],
+				'raw'         => $this->raw( $record ),
+			],
+			'source'             => 'post_content',
+			'notice'             => self::content_notice(),
+		];
+	}
+
+	/**
+	 * post_content with blocks and shortcodes rendered (no the_content filter: plugin output excluded).
+	 */
+	private function render_content( WP_Post $post ): string {
+		$previous        = $GLOBALS['post'] ?? null;
+		$GLOBALS['post'] = $post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Block render context.
+		setup_postdata( $post );
+
+		$html = do_shortcode( do_blocks( (string) $post->post_content ) );
+
+		$GLOBALS['post'] = $previous; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore.
+		if ( $previous instanceof WP_Post ) {
+			setup_postdata( $previous );
+		}
+
+		return trim( $html );
+	}
+
+	private function html_to_text( string $html ): string {
+		$html = preg_replace( '#<(script|style)[^>]*>.*?</\1>#is', ' ', $html ) ?? '';
+		$html = preg_replace( '#</?(p|div|h[1-6]|li|ul|ol|br|tr|table|blockquote|section|figure|figcaption|pre)[^>]*>#i', "\n", $html ) ?? '';
+		$text = html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$text = preg_replace( '/[ \t]+/u', ' ', $text ) ?? '';
+		$text = preg_replace( '/\s*\n\s*/u', "\n", $text ) ?? '';
+
+		return trim( $text );
+	}
+
+	/**
+	 * @return list<array{level: int, text: string}>
+	 */
+	private function outline( string $html ): array {
+		$outline = [];
+		if ( preg_match_all( '#<h([1-6])[^>]*>(.*?)</h\1>#is', $html, $matches, PREG_SET_ORDER ) ) {
+			foreach ( $matches as $match ) {
+				$outline[] = [
+					'level' => (int) $match[1],
+					'text'  => trim( html_entity_decode( wp_strip_all_tags( $match[2] ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ),
+				];
+			}
+		}
+		return $outline;
+	}
+
+	/**
+	 * @return array{internal: list<string>, external: list<string>}
+	 */
+	private function links( string $html ): array {
+		$home  = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+		$links = [
+			'internal' => [],
+			'external' => [],
+		];
+		if ( preg_match_all( '#<a\s[^>]*href=["\']([^"\']+)["\']#i', $html, $matches ) ) {
+			foreach ( array_unique( $matches[1] ) as $href ) {
+				if ( 0 === strpos( $href, '#' ) || 0 === stripos( $href, 'mailto:' ) || 0 === stripos( $href, 'tel:' ) ) {
+					continue;
+				}
+				$host = (string) wp_parse_url( $href, PHP_URL_HOST );
+				$key  = ( '' === $host || $host === $home ) ? 'internal' : 'external';
+
+				$links[ $key ][] = $href;
+			}
+		}
+		return $links;
+	}
+
+	/**
+	 * @return list<string> Image src values without a non-empty alt.
+	 */
+	private function images_without_alt( string $html ): array {
+		$images = [];
+		if ( preg_match_all( '#<img\s[^>]*>#i', $html, $matches ) ) {
+			foreach ( $matches[0] as $tag ) {
+				if ( preg_match( '#\salt=["\']\s*\S#i', $tag ) ) {
+					continue;
+				}
+				$images[] = preg_match( '#\ssrc=["\']([^"\']+)["\']#i', $tag, $src ) ? $src[1] : $tag;
+			}
+		}
+		return array_values( array_unique( $images ) );
 	}
 
 	/**
@@ -414,7 +654,7 @@ final class Module {
 
 		// Exact slug first.
 		if ( '' !== $query ) {
-			$post = $this->resolve_post(
+			$post   = $this->resolve_post(
 				[
 					'slug'      => sanitize_title( $query ),
 					'post_type' => $post_type,
@@ -506,18 +746,36 @@ final class Module {
 			return $post instanceof WP_Post ? $post : null;
 		}
 
-		$slug = sanitize_title( (string) ( $input['slug'] ?? '' ) );
-		if ( '' === $slug ) {
+		// Slug or full path of a child page ("methodologies/agile").
+		$segments = array_filter( array_map( 'sanitize_title', explode( '/', trim( (string) ( $input['slug'] ?? '' ), '/' ) ) ) );
+		if ( [] === $segments ) {
 			return null;
 		}
+		$path = implode( '/', $segments );
 
 		$post_type = sanitize_key( (string) ( $input['post_type'] ?? '' ) );
 		$types     = '' === $post_type ? $this->repository->get_supported_post_types() : [ $post_type ];
 
 		foreach ( $types as $type ) {
-			$post = get_page_by_path( $slug, OBJECT, $type );
+			$post = get_page_by_path( $path, OBJECT, $type );
 			if ( $post instanceof WP_Post ) {
 				return $post;
+			}
+		}
+
+		// Plain slug of a child page: get_page_by_path() needs the full path.
+		if ( 1 === count( $segments ) ) {
+			$posts = get_posts(
+				[
+					'name'             => $path,
+					'post_type'        => $types,
+					'post_status'      => 'any',
+					'numberposts'      => 1,
+					'suppress_filters' => false,
+				]
+			);
+			if ( isset( $posts[0] ) && $posts[0] instanceof WP_Post ) {
+				return $posts[0];
 			}
 		}
 

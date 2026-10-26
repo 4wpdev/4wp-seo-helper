@@ -10,6 +10,11 @@ A plugin by **[4WP](https://4wp.dev/)** · Directory listing: [`readme.txt`](rea
 
 Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 
+## Version 2.6.1
+
+- **`forwp-seo-helper/get-content`** — page body for AI agents (text / HTML / blocks, limits in **Settings → AI agents (Abilities)**), with a notice that the public page may differ (template, header/footer, plugin output).
+- **Fix:** Yoast indexable refreshed after SEO meta writes (no duplicate rows); child pages found by slug.
+
 ## Version 2.6.0
 
 - **Abilities API** (WordPress 6.9+) — `forwp-seo-helper/list-missing-meta`, `get-meta`, `update-meta`, `search`: audit and edit SEO meta from AI agents (Claude via [4WP MCP Connector](https://4wp.dev/) + MCP Adapter). Writes go through the active SEO plugin adapter. See **[docs/ABILITIES.md](docs/ABILITIES.md)**.

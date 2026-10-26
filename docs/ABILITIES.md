@@ -1,6 +1,6 @@
 # Abilities (WordPress Abilities API)
 
-Since **2.6.0**. Requires WordPress **6.9+** (Abilities API) and an enabled **SEO Inventory**. Abilities are registered in `includes/Abilities/Module.php`.
+Since **2.6.0** (`get-content` — 2.6.1). Requires WordPress **6.9+** (Abilities API) and an enabled **SEO Inventory**. Abilities are registered in `includes/Abilities/Module.php`.
 
 For AI clients (Claude Desktop, other MCP clients) enable them in **4WP MCP Connector** (Settings → 4WP MCP). MCP tool names replace `/` with `-`, e.g. `forwp-seo-helper-get-meta`.
 
@@ -39,7 +39,7 @@ Output: `id`, `title`, `slug`, `post_type`, `url`, `edit_url`, `seo_plugin`, `ra
 
 ## `forwp-seo-helper/update-meta`
 
-Write; live immediately (SEO meta are not drafted). Annotations: not read-only, not destructive, idempotent.
+Write; live immediately (SEO meta are not drafted). With Yoast SEO the indexable is rebuilt after the write (Yoast stores indexables only in production mode). Annotations: not read-only, not destructive, idempotent.
 
 | Input | Type | Notes |
 |---|---|---|
@@ -66,6 +66,32 @@ Output: `items[]` (same item as `list-missing-meta`), `seo_plugin`.
 {"keyword": "wordpress mcp"}
 ```
 
+## `forwp-seo-helper/get-content`
+
+Read-only. Since **2.6.1**. Page body (`post_content`) of one post by `id` or `slug` (plain slug or full path of a child page, e.g. `methodologies/agile`).
+
+> **Notice** (in every response): returns post_content only. The public page may differ: theme template, header/footer, sidebars, template parts and plugin output are not included. Compare with `url` when layout matters.
+
+| Input | Type | Notes |
+|---|---|---|
+| `id` or `slug` (+ `post_type`) | | Target |
+| `format` | `text` \| `html` \| `blocks` | Only formats allowed in settings; default from settings |
+| `max_chars` | integer | Capped by the setting |
+
+Formats: `text` — cleaned text (cheapest); `html` — blocks and shortcodes rendered (no `the_content` filter, so plugin output is excluded); `blocks` — raw post_content.
+
+Output: `id`, `title`, `url`, `format`, `content`, `chars`, `truncated`, `word_count`, `outline[]` (`level`, `text`), `links` (`internal[]`, `external[]`), `images_without_alt[]`, `seo` (`plugin`, `title`, `description`, `raw`), `source` (`post_content`), `notice`.
+
+Permissions: `read_post`; drafts and password-protected posts — `edit_post`.
+
+Settings: **4WP SEO → Settings → AI agents (Abilities): page content** — allowed formats (default: `text` only), default format, max characters (default 20 000, 500–200 000). Option `forwp_seo_helper_abilities_content`.
+
+```json
+{"slug": "agile", "format": "text"}
+```
+
+Size, one page measured: page HTML by URL ~140 000 tokens; cleaned page text ~330; post_content text ~130.
+
 ## Errors
 
 | Code | When |
@@ -77,3 +103,4 @@ Output: `items[]` (same item as `list-missing-meta`), `seo_plugin`.
 | `no_fields` | `update-meta` without fields |
 | `no_query` | `search` without `query` and `keyword` |
 | `update_failed` | Adapter write failed or insufficient permissions |
+| `format_not_allowed` | `get-content` format not enabled in settings |

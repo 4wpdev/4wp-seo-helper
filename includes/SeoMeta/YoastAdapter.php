@@ -119,6 +119,9 @@ final class YoastAdapter implements AdapterInterface {
 			);
 		}
 
+		// Yoast SEO renders from its indexables table, not post meta.
+		self::rebuild_indexable( $post_id );
+
 		return true;
 	}
 
@@ -232,8 +235,17 @@ final class YoastAdapter implements AdapterInterface {
 		}
 
 		try {
-			$builder = YoastSEO()->classes->get( \Yoast\WP\SEO\Builders\Indexable_Builder::class );
-			$builder->build_for_id_and_type( $post_id, 'post' );
+			// The watcher updates the existing indexable (and its links); the builder alone with no
+			// indexable creates a new row on every call.
+			$watcher = \Yoast\WP\SEO\Integrations\Watchers\Indexable_Post_Watcher::class;
+			if ( class_exists( $watcher ) ) {
+				YoastSEO()->classes->get( $watcher )->build_indexable( $post_id );
+
+				return true;
+			}
+
+			$existing = YoastSEO()->classes->get( \Yoast\WP\SEO\Repositories\Indexable_Repository::class )->find_by_id_and_type( $post_id, 'post', false );
+			YoastSEO()->classes->get( \Yoast\WP\SEO\Builders\Indexable_Builder::class )->build_for_id_and_type( $post_id, 'post', $existing );
 
 			return true;
 		} catch ( \Throwable $e ) {
