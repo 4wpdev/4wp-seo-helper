@@ -5,6 +5,7 @@
 
 namespace Forwp\SeoHelper\Core;
 
+use Forwp\SeoHelper\Abilities\Module as AbilitiesModule;
 use Forwp\SeoHelper\Admin\AdminBar;
 use Forwp\SeoHelper\Admin\Editor;
 use Forwp\SeoHelper\Admin\Menu;
@@ -55,6 +56,7 @@ final class Extension {
 		Generator::get_instance();
 		CrossPostingModule::get_instance();
 		InventoryModule::get_instance();
+		AbilitiesModule::get_instance();
 		PositionsModule::get_instance();
 		FocusKeywordsModule::get_instance();
 		TrendsModule::get_instance();

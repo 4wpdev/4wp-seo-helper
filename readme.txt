@@ -4,7 +4,7 @@ Tags: seo, inventory, yoast, search console, google
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 2.5.0
+Stable tag: 2.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,6 +24,8 @@ Version **2.4** adds **Positions**: track Google SERP rank for queries (via Serp
 
 Version **2.5** adds **Cross posting** for packages imported from **4WP Drive** (`meta.json`): manage platforms, delay after the original post is published, share a Telegram list, send manually from the editor, and record publications (with live slug) from the Chrome extension.
 
+Version **2.6** adds **Abilities** (WordPress 6.9+ Abilities API): AI agents can list posts with missing or incomplete SEO meta, read and update SEO title / meta description / focus keyword by ID or slug, and search posts by title or focus keyword. Values are saved through the active SEO plugin adapter. Expose them to Claude and other MCP clients with [4WP MCP Connector](https://4wp.dev/) and the official MCP Adapter.
+
 Built for teams that use **Yoast SEO** or **All in One SEO** and need one place to audit SEO fields across posts, pages, and public custom post types.
 
 A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Helper on 4wp.dev](https://4wp.dev/plugin/4wp-seo-helper/).
@@ -40,6 +42,7 @@ A plugin by [4wp.dev](https://4wp.dev/). Overview and setup notes: [4WP SEO Help
 * **Cross posting** — after a Drive package is published, schedule or send shares to Dev.to, daily.dev, Hashnode, Medium, X, and more; Telegram notify; status in the editor
 * **Indexing workflows** — refresh index status and request indexing from the inventory table or admin bar
 * **External sync** — REST API for Google Sheets or custom dashboards
+* **AI agents (MCP)** — Abilities API: audit, search, and edit SEO meta from Claude via 4WP MCP Connector
 * **Multilingual sites** — Polylang, WPML, or single-language
 
 = How it works =
@@ -276,6 +279,14 @@ When an administrator configures a connector under **Settings → Connectors** a
 5. GSC data sync, inventory Search Console metrics, and indexing actions
 
 == Changelog ==
+
+= 2.6.0 =
+* **Abilities API** (WordPress 6.9+): category `forwp-seo-helper` with four abilities for AI agents / MCP:
+* `forwp-seo-helper/list-missing-meta` — posts with no SEO title and description (`none`), one of them missing (`incomplete`) or any (`any`); shows the SEO plugin template value.
+* `forwp-seo-helper/get-meta` — SEO meta of a post by ID or slug: raw (set manually) and effective (after templates).
+* `forwp-seo-helper/update-meta` — set SEO title, meta description, focus keyword by ID or slug through the active SEO plugin (Yoast SEO / AIOSEO); returns previous values; logged in SEO history.
+* `forwp-seo-helper/search` — find posts by title / slug or focus keyword.
+* Abilities are registered only when the Abilities API exists and SEO Inventory is enabled. See `docs/ABILITIES.md`.
 
 = 2.5.0 =
 * **Cross posting** — enable under Settings; default delay (hours) after the original post is published.

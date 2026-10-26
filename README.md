@@ -10,6 +10,10 @@ A plugin by **[4WP](https://4wp.dev/)** · Directory listing: [`readme.txt`](rea
 
 Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 
+## Version 2.6.0
+
+- **Abilities API** (WordPress 6.9+) — `forwp-seo-helper/list-missing-meta`, `get-meta`, `update-meta`, `search`: audit and edit SEO meta from AI agents (Claude via [4WP MCP Connector](https://4wp.dev/) + MCP Adapter). Writes go through the active SEO plugin adapter. See **[docs/ABILITIES.md](docs/ABILITIES.md)**.
+
 ## Version 2.5.0
 
 - **Cross posting** — Settings toggle + default delay after the original is published; **Platforms** taxonomy (Dev.to, daily.dev, Hashnode, Medium, X, …).
@@ -52,6 +56,7 @@ Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 - **Dynamics** — per-URL history of index requests, crawls, content, SEO fields, and search metrics
 - **AI Assistant** — WordPress AI Client connectors; generate title / description / keyphrases from page content (or URL)
 - **REST API** — Sheets or custom dashboards
+- **Abilities (MCP)** — list / get / update / search SEO meta for AI agents (WordPress 6.9+)
 - **Multilingual** — Polylang, WPML, or single-language
 
 ## AI Assistant (WordPress Connectors)
@@ -88,6 +93,7 @@ The plugin does not ship API keys or talk to a model until the site administrato
 - Optional: Google Cloud OAuth + Search Console API
 - Optional: Serper API key for Positions
 - Optional: **WordPress AI Client** + a connector under **Settings → Connectors**
+- Optional: WordPress **6.9+** (Abilities API) + MCP Adapter + 4WP MCP Connector for AI agents
 
 ## License
 
