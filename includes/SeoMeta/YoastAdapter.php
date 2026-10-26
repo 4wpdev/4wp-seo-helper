@@ -234,6 +234,17 @@ final class YoastAdapter implements AdapterInterface {
 			return false;
 		}
 
+		// Outside production Yoast builds the indexable but does not save it, so the frontend keeps
+		// the stale row. Allow saving this one post's indexable for the duration of the rebuild.
+		$allow_save = static function ( $save, $indexable ) use ( $post_id ) {
+			if ( is_object( $indexable ) && 'post' === $indexable->object_type && $post_id === (int) $indexable->object_id ) {
+				return true;
+			}
+
+			return $save;
+		};
+		add_filter( 'wpseo_should_save_indexable', $allow_save, 10, 2 );
+
 		try {
 			// The watcher updates the existing indexable (and its links); the builder alone with no
 			// indexable creates a new row on every call.
@@ -250,6 +261,8 @@ final class YoastAdapter implements AdapterInterface {
 			return true;
 		} catch ( \Throwable $e ) {
 			return false;
+		} finally {
+			remove_filter( 'wpseo_should_save_indexable', $allow_save, 10 );
 		}
 	}
 }

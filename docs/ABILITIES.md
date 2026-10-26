@@ -39,7 +39,7 @@ Output: `id`, `title`, `slug`, `post_type`, `url`, `edit_url`, `seo_plugin`, `ra
 
 ## `forwp-seo-helper/update-meta`
 
-Write; live immediately (SEO meta are not drafted). With Yoast SEO the indexable is rebuilt after the write (Yoast stores indexables only in production mode). Annotations: not read-only, not destructive, idempotent.
+Write; live immediately (SEO meta are not drafted). With Yoast SEO the indexable of the post is rebuilt and saved after the write, in any environment (since 2.6.2; Yoast itself saves indexables only in production mode). Annotations: not read-only, not destructive, idempotent.
 
 | Input | Type | Notes |
 |---|---|---|

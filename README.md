@@ -10,6 +10,10 @@ A plugin by **[4WP](https://4wp.dev/)** · Directory listing: [`readme.txt`](rea
 
 Developer notes: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**
 
+## Version 2.6.2
+
+- **Fix (Yoast SEO):** written SEO meta show on the page in staging / development too (Yoast saves indexables only in production; the rebuild now saves that post's indexable).
+
 ## Version 2.6.1
 
 - **`forwp-seo-helper/get-content`** — page body for AI agents (text / HTML / blocks, limits in **Settings → AI agents (Abilities)**), with a notice that the public page may differ (template, header/footer, plugin output).
