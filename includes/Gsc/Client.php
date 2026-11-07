@@ -56,6 +56,7 @@ final class Client {
 				[
 					'https://www.googleapis.com/auth/webmasters',
 					'https://www.googleapis.com/auth/webmasters.readonly',
+					\Forwp\SeoHelper\Ga\Client::SCOPE,
 				]
 			),
 			'state'         => $state,

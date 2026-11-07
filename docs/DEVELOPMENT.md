@@ -145,3 +145,18 @@ Spec: [seo-metadata.md](../../../../docs/seo-metadata.md) (4wp.dev site docs).
 ## License
 
 GPL v2 or later. See [`4wp-seo-helper.php`](../4wp-seo-helper.php).
+
+## Google Analytics (GA4) → 4WP Planner
+
+- Module: `includes/Ga/` (`Client` — GA4 Data/Admin API, `Module` — property option, cached totals, Planner hooks).
+- Auth: the Search Console OAuth connection with an extra scope `analytics.readonly`. Sites connected before this change must disconnect and connect again.
+- Settings: **4WP SEO → Settings → Search Console** tab, panel **Google Analytics (GA4)** — choose the GA4 property; shows last 7 days users / sessions / pageviews.
+- Planner integration (no hard dependency):
+  - `forwp_planner_metric_value` ( `$value, $metric, $start, $end` ) — returns GA4 totals for `visitors` (activeUsers), `sessions`, `pageviews` (screenPageViews).
+  - `forwp_planner_metrics` — marks those metrics `source = plugin`, `provider = 4wp-seo-helper`.
+  - Manual F1 in Planner always wins over the GA4 value.
+- Storage (DB, not transients):
+  - `wp_forwp_ga_daily` — property × date × metric × value (additive metrics: sessions, screenPageViews…). Missing days and the last 2 days are fetched from Google; older days are final.
+  - `wp_forwp_ga_period` — property × period × metric × value for non-additive metrics (activeUsers — unique users cannot be summed by day). Final after the period is older than 2 days; otherwise refreshed at most hourly.
+  - Schema: `Ga\Schema` (`forwp_seo_ga_db_version`), access: `Ga\Repository`.
+- Admin page: **4WP SEO → Google Analytics** (`forwp-seo-ga`) — last 30 days by day + stored period totals.

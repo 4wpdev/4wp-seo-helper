@@ -62,6 +62,7 @@ final class Extension {
 		TrendsModule::get_instance();
 		GscModule::get_instance();
 		GscAdmin::get_instance(); // Must be initialized for REST API callback
+		\Forwp\SeoHelper\Ga\Module::get_instance();
 		Indexing::get_instance();
 		AdminBar::boot();
 

@@ -273,6 +273,13 @@ final class Page {
 							: ( $is_connected ? __( 'Choose a property in Search Console tab', '4wp-seo-helper' ) : __( 'Not connected', '4wp-seo-helper' ) ) ) )
 					: __( 'Planned for a future release', '4wp-seo-helper' )
 			);
+			$ga_status = \Forwp\SeoHelper\Ga\Module::get_instance()->status();
+			self::render_status_card(
+				__( 'Google Analytics (GA4)', '4wp-seo-helper' ),
+				__( 'Users, sessions, pageviews per period. Feeds 4WP Planner goals (F1).', '4wp-seo-helper' ),
+				$ga_status['badge'],
+				$ga_status['meta']
+			);
 			self::render_status_card(
 				__( 'LLMS.txt', '4wp-seo-helper' ),
 				__( 'Machine-readable site index for AI crawlers.', '4wp-seo-helper' ),
@@ -643,6 +650,7 @@ final class Page {
 
 	private static function render_gsc_tab( bool $gsc_enabled ): void {
 		GscAdmin::get_instance()->render_connect_section( $gsc_enabled );
+		\Forwp\SeoHelper\Ga\Module::get_instance()->render_panel();
 	}
 
 	private static function render_ai_assistant_panel(): void {

@@ -166,6 +166,14 @@ final class Menu {
 				self::GSC_PAGE_SLUG,
 				[ GscPage::class, 'render' ]
 			);
+			add_submenu_page(
+				self::PAGE_SLUG,
+				__( 'Google Analytics', '4wp-seo-helper' ),
+				__( 'Google Analytics', '4wp-seo-helper' ),
+				'manage_options',
+				\Forwp\SeoHelper\Ga\Module::PAGE_SLUG,
+				[ \Forwp\SeoHelper\Ga\Module::get_instance(), 'render_page' ]
+			);
 		}
 
 		self::$trends_page_hook = add_submenu_page(
