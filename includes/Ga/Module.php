@@ -41,6 +41,7 @@ final class Module {
 
 	private function __construct() {
 		Schema::maybe_upgrade();
+		Sync::boot();
 		add_action( 'admin_init', [ $this, 'handle_post' ] );
 		add_filter( 'forwp_planner_metric_value', [ $this, 'planner_value' ], 10, 4 );
 		add_filter( 'forwp_planner_metrics', [ $this, 'planner_metrics' ] );
@@ -59,20 +60,11 @@ final class Module {
 	}
 
 	/**
-	 * Metrics that can be summed by day. Others (users) need an exact period total.
-	 */
-	private const ADDITIVE = [ 'sessions', 'screenPageViews', 'newUsers', 'eventCount' ];
-
-	/**
-	 * Days newer than this are re-fetched (GA4 keeps processing recent data).
-	 */
-	private const REFRESH_DAYS = 2;
-
-	/**
-	 * Totals for a period, served from the database; Google is asked only for missing or fresh data.
+	 * Totals for a period, read from the database only. Never calls Google: data comes from Sync
+	 * (cron or "Sync now"). Values not collected yet are listed in `pending` and queued for the next run.
 	 *
 	 * @param list<string> $metrics GA4 metric names.
-	 * @return array{totals?: array<string, int>, error?: string}
+	 * @return array{totals?: array<string, int>, pending?: list<string>, error?: string}
 	 */
 	public function totals( string $start, string $end, array $metrics = [ 'activeUsers', 'sessions', 'screenPageViews' ] ): array {
 		if ( ! $this->is_ready() ) {
@@ -82,94 +74,47 @@ final class Module {
 		if ( $start > $today ) {
 			return [ 'error' => 'Period has not started.' ];
 		}
-		$end      = min( $end, $today );
 		$property = $this->property_id();
-		$fresh    = wp_date( 'Y-m-d', strtotime( '-' . self::REFRESH_DAYS . ' days' ) );
+		$fresh    = Sync::fresh_date();
 		$totals   = [];
+		$pending  = [];
 
-		$additive = array_values( array_intersect( $metrics, self::ADDITIVE ) );
-		if ( $additive ) {
-			$error = $this->sync_daily( $property, $start, $end, $additive, $fresh );
-			if ( '' !== $error ) {
-				return [ 'error' => $error ];
+		$daily = array_values( array_intersect( $metrics, Sync::DAILY_METRICS ) );
+		if ( $daily ) {
+			$last   = min( $end, $today );
+			$stored = Repository::stored_dates( $property, $start, $last, $daily );
+			$days   = (int) floor( ( strtotime( $last ) - strtotime( $start ) ) / DAY_IN_SECONDS ) + 1;
+			if ( count( $stored ) < $days ) {
+				Sync::want_period( $start, $end, [] ); // Missing days: next run backfills them.
 			}
-			foreach ( $additive as $metric ) {
-				$totals[ $metric ] = Repository::sum_daily( $property, $start, $end, $metric );
-			}
-		}
-
-		$exact = array_values( array_diff( $metrics, self::ADDITIVE ) );
-		if ( $exact ) {
-			$missing = [];
-			foreach ( $exact as $metric ) {
-				$row = Repository::get_period( $property, $start, $end, $metric );
-				// Final when the period ended before the refresh window and was synced after it closed.
-				$final = $row && $end < $fresh && substr( $row['synced_at'], 0, 10 ) > $end;
-				$recent = $row && ( time() - strtotime( $row['synced_at'] . ' UTC' ) ) < HOUR_IN_SECONDS;
-				if ( $final || $recent ) {
-					$totals[ $metric ] = $row['value'];
-				} else {
-					$missing[] = $metric;
-				}
-			}
-			if ( $missing ) {
-				$token = $this->token();
-				if ( '' === $token ) {
-					return [ 'error' => 'Google token is not available.' ];
-				}
-				$result = ( new Client() )->totals( $token, $property, $start, $end, $missing );
-				if ( isset( $result['error'] ) ) {
-					return $result;
-				}
-				foreach ( $missing as $metric ) {
-					$value             = (int) ( $result['totals'][ $metric ] ?? 0 );
-					$totals[ $metric ] = $value;
-					Repository::save_period( $property, $start, $end, $metric, $value );
-				}
+			foreach ( $daily as $metric ) {
+				$totals[ $metric ] = Repository::sum_daily( $property, $start, $last, $metric );
 			}
 		}
 
-		return [ 'totals' => $totals ];
-	}
+		$exact = array_values( array_diff( $metrics, Sync::DAILY_METRICS ) );
+		$queue = [];
+		foreach ( $exact as $metric ) {
+			$row = Repository::get_period( $property, $start, $end, $metric );
+			if ( $row ) {
+				$totals[ $metric ] = $row['value'];
+			} else {
+				$pending[] = $metric;
+			}
+			// Final when the period ended before the open window and was synced after that.
+			$final = $row && $end < $fresh && substr( $row['synced_at'], 0, 10 ) > gmdate( 'Y-m-d', strtotime( $end . ' +' . Sync::SETTLE_DAYS . ' days' ) );
+			if ( ! $final ) {
+				$queue[] = $metric;
+			}
+		}
+		if ( $queue ) {
+			Sync::want_period( $start, $end, $queue );
+		}
 
-	/**
-	 * Fetch days that are missing in the database or still fresh. Returns error message or ''.
-	 *
-	 * @param list<string> $metrics Additive metrics.
-	 */
-	private function sync_daily( string $property, string $start, string $end, array $metrics, string $fresh ): string {
-		$stored = Repository::stored_dates( $property, $start, $end, $metrics );
-		$need   = [];
-		for ( $d = $start; $d <= $end; $d = gmdate( 'Y-m-d', strtotime( $d . ' +1 day' ) ) ) {
-			if ( ! isset( $stored[ $d ] ) || $d >= $fresh ) {
-				$need[] = $d;
-			}
-		}
-		if ( ! $need ) {
-			return '';
-		}
-		// Fresh days: at most once per hour.
-		$lock = 'forwp_seo_ga_daily_' . md5( $property . implode( ',', $metrics ) . reset( $need ) . end( $need ) );
-		if ( count( $need ) === count( array_filter( $need, static fn( $d ) => isset( $stored[ $d ] ) ) ) && get_transient( $lock ) ) {
-			return '';
-		}
-		$token = $this->token();
-		if ( '' === $token ) {
-			return 'Google token is not available.';
-		}
-		$result = ( new Client() )->daily( $token, $property, reset( $need ), end( $need ), $metrics );
-		if ( isset( $result['error'] ) ) {
-			return (string) $result['error'];
-		}
-		$days = (array) ( $result['days'] ?? [] );
-		foreach ( $need as $d ) {
-			if ( ! isset( $days[ $d ] ) ) {
-				$days[ $d ] = array_fill_keys( $metrics, 0 ); // No traffic that day — store zero so it is not re-fetched.
-			}
-		}
-		Repository::save_daily( $property, $days );
-		set_transient( $lock, 1, HOUR_IN_SECONDS );
-		return '';
+		return [
+			'totals'  => $totals,
+			'pending' => $pending,
+		];
 	}
 
 	/**
@@ -235,6 +180,19 @@ final class Module {
 				'meta'  => $name . ' · ' . $totals['error'],
 			];
 		}
+		$state = Sync::state();
+		if ( ! empty( $state['last_error'] ) ) {
+			return [
+				'badge' => 'warn',
+				'meta'  => $name . ' · ' . __( 'Last sync failed:', '4wp-seo-helper' ) . ' ' . $state['last_error'],
+			];
+		}
+		if ( ! isset( $totals['totals']['activeUsers'] ) ) {
+			return [
+				'badge' => 'warn',
+				'meta'  => $name . ' · ' . __( 'Collecting data — next sync will fill it', '4wp-seo-helper' ),
+			];
+		}
 		return [
 			'badge' => 'live',
 			'meta'  => sprintf(
@@ -286,7 +244,7 @@ final class Module {
 	}
 
 	/**
-	 * GA data page: last 30 days by day (from the database, synced on open) + stored period totals.
+	 * GA data page: last 30 days by day + stored period totals. Database only; "Sync now" runs the collector.
 	 */
 	public function render_page(): void {
 		global $wpdb;
@@ -297,19 +255,19 @@ final class Module {
 		}
 		$end    = wp_date( 'Y-m-d' );
 		$start  = wp_date( 'Y-m-d', strtotime( '-29 days' ) );
-		$result = $this->totals( $start, $end, [ 'sessions', 'screenPageViews' ] );
-		$users  = $this->totals( $start, $end, [ 'activeUsers' ] );
+		$state  = Sync::state();
+		$next   = wp_next_scheduled( Sync::CRON_HOOK );
 
 		echo '<p>' . esc_html( (string) get_option( self::OPTION_PROPERTY_NAME, $this->property_id() ) ) . ' · ' . esc_html( $start . ' → ' . $end ) . '</p>';
-		foreach ( [ $result, $users ] as $r ) {
-			if ( isset( $r['error'] ) ) {
-				echo '<div class="notice notice-error inline"><p>' . esc_html( $r['error'] ) . '</p></div>';
-			}
-		}
-		echo '<p><strong>' . esc_html__( '30 days:', '4wp-seo-helper' ) . '</strong> ' .
-			esc_html( number_format_i18n( (int) ( $users['totals']['activeUsers'] ?? 0 ) ) ) . ' users · ' .
-			esc_html( number_format_i18n( (int) ( $result['totals']['sessions'] ?? 0 ) ) ) . ' sessions · ' .
-			esc_html( number_format_i18n( (int) ( $result['totals']['screenPageViews'] ?? 0 ) ) ) . ' pageviews</p>';
+		$busy   = Sync::is_queued() || Sync::is_running();
+		$error  = (string) ( $state['last_error'] ?? '' );
+		echo '<div id="forwp-seo-ga-sync" class="notice inline ' . ( $busy ? 'notice-info' : ( '' !== $error ? 'notice-error' : '' ) ) . '"' . ( $busy || '' !== $error ? '' : ' hidden' ) . '><p>' .
+			esc_html( $busy ? __( 'Sync is running in the background…', '4wp-seo-helper' ) : __( 'Last sync failed:', '4wp-seo-helper' ) . ' ' . $error ) . '</p></div>';
+		echo '<p>' . esc_html__( 'Last successful sync (UTC):', '4wp-seo-helper' ) . ' <span id="forwp-seo-ga-last">' . esc_html( (string) ( $state['last_ok'] ?? '—' ) ) . '</span> · ';
+		echo esc_html__( 'Next cron:', '4wp-seo-helper' ) . ' ' . esc_html( $next ? wp_date( 'Y-m-d H:i', $next ) : '—' ) . ' ';
+		echo '<button type="button" class="button" id="forwp-seo-ga-sync-btn"' . disabled( $busy, true, false ) . '>' . esc_html__( 'Sync now', '4wp-seo-helper' ) . '</button></p>';
+		echo '<p id="forwp-seo-ga-summary">' . esc_html( $this->summary_text() ) . '</p>';
+		$this->print_sync_script( $busy );
 
 		$daily = Schema::daily_table();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -335,6 +293,92 @@ final class Module {
 			echo '<tr><td>' . esc_html( $row->period_start . ' → ' . $row->period_end ) . '</td><td>' . esc_html( $row->metric ) . '</td><td>' . esc_html( (string) $row->value ) . '</td><td>' . esc_html( $row->synced_at ) . '</td></tr>';
 		}
 		echo '</tbody></table></div>';
+	}
+
+	/**
+	 * One line: users · sessions · pageviews for the last 30 days (database only).
+	 */
+	public function summary_text(): string {
+		$end    = wp_date( 'Y-m-d' );
+		$start  = wp_date( 'Y-m-d', strtotime( '-29 days' ) );
+		$totals = $this->totals( $start, $end )['totals'] ?? [];
+		$users  = isset( $totals['activeUsers'] ) ? number_format_i18n( (int) $totals['activeUsers'] ) : '—';
+		return sprintf(
+			/* translators: 1: users, 2: sessions, 3: pageviews */
+			__( '30 days: %1$s users · %2$s sessions · %3$s pageviews', '4wp-seo-helper' ),
+			$users,
+			number_format_i18n( (int) ( $totals['sessions'] ?? 0 ) ),
+			number_format_i18n( (int) ( $totals['screenPageViews'] ?? 0 ) )
+		);
+	}
+
+	/**
+	 * "Sync now" without reload: start → poll status every 5 s → update the status line and summary.
+	 */
+	private function print_sync_script( bool $busy ): void {
+		$config = [
+			'url'     => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( Sync::MANUAL_ACTION ),
+			'start'   => Sync::MANUAL_ACTION,
+			'status'  => Sync::STATUS_ACTION,
+			'busy'    => $busy,
+			'running' => __( 'Sync is running in the background…', '4wp-seo-helper' ),
+			'done'    => __( 'Synced. Reload the page to refresh the table.', '4wp-seo-helper' ),
+			'failed'  => __( 'Last sync failed:', '4wp-seo-helper' ),
+		];
+		?>
+		<script>
+		( function ( c ) {
+			var btn = document.getElementById( 'forwp-seo-ga-sync-btn' );
+			var box = document.getElementById( 'forwp-seo-ga-sync' );
+			var timer = null;
+			function show( cls, text ) {
+				box.hidden = false;
+				box.className = 'notice inline ' + cls;
+				box.firstChild.textContent = text;
+			}
+			function call( action ) {
+				var body = new FormData();
+				body.append( 'action', action );
+				body.append( 'nonce', c.nonce );
+				return fetch( c.url, { method: 'POST', credentials: 'same-origin', body: body } ).then( function ( r ) { return r.json(); } );
+			}
+			function apply( res ) {
+				if ( ! res || ! res.success ) {
+					show( 'notice-error', c.failed + ' ' + ( ( res && res.data && res.data.message ) || 'request error' ) );
+					btn.disabled = false;
+					return;
+				}
+				var d = res.data;
+				document.getElementById( 'forwp-seo-ga-last' ).textContent = d.last_ok;
+				document.getElementById( 'forwp-seo-ga-summary' ).textContent = d.summary;
+				if ( d.busy ) {
+					show( 'notice-info', c.running );
+					btn.disabled = true;
+					timer = setTimeout( poll, 5000 );
+					return;
+				}
+				btn.disabled = false;
+				if ( d.last_error ) {
+					show( 'notice-error', c.failed + ' ' + d.last_error );
+				} else {
+					show( 'notice-success', c.done );
+				}
+			}
+			function poll() {
+				call( c.status ).then( apply ).catch( function () { timer = setTimeout( poll, 5000 ); } );
+			}
+			btn.addEventListener( 'click', function () {
+				btn.disabled = true;
+				show( 'notice-info', c.running );
+				call( c.start ).then( apply ).catch( function () { btn.disabled = false; } );
+			} );
+			if ( c.busy ) {
+				timer = setTimeout( poll, 5000 );
+			}
+		}( <?php echo wp_json_encode( $config ); ?> ) );
+		</script>
+		<?php
 	}
 
 	public function render_panel(): void {
@@ -387,7 +431,7 @@ final class Module {
 									esc_html__( 'Last 7 days (%1$s – %2$s): %3$s users · %4$s sessions · %5$s pageviews.', '4wp-seo-helper' ),
 									esc_html( $start ),
 									esc_html( $end ),
-									esc_html( number_format_i18n( $totals['totals']['activeUsers'] ?? 0 ) ),
+									esc_html( isset( $totals['totals']['activeUsers'] ) ? number_format_i18n( $totals['totals']['activeUsers'] ) : '—' ),
 									esc_html( number_format_i18n( $totals['totals']['sessions'] ?? 0 ) ),
 									esc_html( number_format_i18n( $totals['totals']['screenPageViews'] ?? 0 ) )
 								);

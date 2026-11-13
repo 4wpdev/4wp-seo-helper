@@ -81,7 +81,7 @@ final class Client {
 						),
 					]
 				),
-				'timeout' => 20,
+				'timeout' => 60,
 			]
 		);
 		$body = $this->parse( $response );
@@ -130,7 +130,7 @@ final class Client {
 						'limit'      => 1000,
 					]
 				),
-				'timeout' => 20,
+				'timeout' => 30,
 			]
 		);
 		$body = $this->parse( $response );

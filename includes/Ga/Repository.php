@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Repository {
 
 	/**
-	 * Dates in [start, end] that have a final row for every metric (older than the refresh window).
+	 * Dates in [start, end] that have a row for every metric (final or not).
 	 *
 	 * @param list<string> $metrics Metrics.
 	 * @return array<string, true> date => true
@@ -23,6 +23,27 @@ final class Repository {
 		$in    = implode( ',', array_fill( 0, count( $metrics ), '%s' ) );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT metric_date, COUNT(DISTINCT metric) AS n FROM {$table} WHERE property = %s AND metric_date BETWEEN %s AND %s AND metric IN ({$in}) GROUP BY metric_date", array_merge( [ $property, $start, $end ], $metrics ) ) );
+		$out  = [];
+		foreach ( (array) $rows as $row ) {
+			if ( (int) $row->n >= count( $metrics ) ) {
+				$out[ (string) $row->metric_date ] = true;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Dates in [start, end] that are final for every metric: synced more than $settle_days after the date.
+	 *
+	 * @param list<string> $metrics Metrics.
+	 * @return array<string, true> date => true
+	 */
+	public static function final_dates( string $property, string $start, string $end, array $metrics, int $settle_days ): array {
+		global $wpdb;
+		$table = Schema::daily_table();
+		$in    = implode( ',', array_fill( 0, count( $metrics ), '%s' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT metric_date, COUNT(DISTINCT metric) AS n FROM {$table} WHERE property = %s AND metric_date BETWEEN %s AND %s AND metric IN ({$in}) AND DATE(synced_at) > DATE_ADD(metric_date, INTERVAL %d DAY) GROUP BY metric_date", array_merge( [ $property, $start, $end ], $metrics, [ $settle_days ] ) ) );
 		$out  = [];
 		foreach ( (array) $rows as $row ) {
 			if ( (int) $row->n >= count( $metrics ) ) {
